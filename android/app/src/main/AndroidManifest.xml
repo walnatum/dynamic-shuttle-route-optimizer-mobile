@@ -10,6 +10,15 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
+
+      <!-- <meta-data
+      android:name="com.google.android.geo.API_KEY"
+      android:value="https://maps.googleapis.com/maps/api/js?key=AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg&callback=initMap" > -->
+
+      <meta-data
+      android:name="com.google.android.geo.API_KEY"
+      android:value="AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg" />
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
