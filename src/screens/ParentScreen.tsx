@@ -15,7 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-native-maps";
 import LinearGradient from "react-native-linear-gradient";
 
-const HomeScreen = () => {
+const ParentScreen = () => {
   const navigation = useNavigation();
   const mapRef = useRef(null);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -386,7 +386,7 @@ const HomeScreen = () => {
 
       {/* Top-Right Corner Button (Always Visible) */}
       <TouchableOpacity style={styles.topRightButton}>
-        <Text style={styles.buttonText}>Assistant </Text>
+        <Text style={styles.buttonText}>Route Tracker</Text>
       </TouchableOpacity>
     </View>
   );
@@ -536,4 +536,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default ParentScreen;
