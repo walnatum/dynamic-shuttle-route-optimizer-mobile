@@ -7,6 +7,12 @@ import 'react-native-gesture-handler';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ParentScreen from './src/screens/ParentScreen';
+import RouteTrackerScreen from './src/screens/RouteTrackerScreen';
+import AssistantScreen from './src/screens/AssistantScreen';
+import ListScreen from './src/screens/ListScreen';
+
+
+
 
 
 // Define the type for navigation
@@ -28,6 +34,13 @@ function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="HomeScreen" component={HomeScreen} />
           <Stack.Screen name="ParentScreen" component={ParentScreen} />
+          <Stack.Screen name="RouteTrackerScreen" component={RouteTrackerScreen} />
+          <Stack.Screen name="AssistantScreen" component={AssistantScreen} />
+          <Stack.Screen name="ListScreen" component={ListScreen} />
+
+
+        
+
 
         </Stack.Navigator>
       </NavigationContainer>

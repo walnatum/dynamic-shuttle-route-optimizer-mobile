@@ -28,6 +28,12 @@ const HomeScreen = () => {
   const [showRouteInput, setShowRouteInput] = useState(false);
   const [travelTimesByMode, setTravelTimesByMode] = useState(null);
 
+// Assistant code
+const [showAssistantOverlay, setShowAssistantOverlay] = useState(false);
+const [generatedCode, setGeneratedCode] = useState("");
+const [storedCode, setStoredCode] = useState(null); // Provision for storing code, not implemented yet
+const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: UnSync, In Sync, Synced
+
   // Default location (Kampala, Uganda)
   const defaultLocation = {
     latitude: 0.3476,
@@ -242,6 +248,18 @@ const HomeScreen = () => {
     mapRef.current.animateToRegion(defaultLocation);
   };
 
+// Assistant Code
+    const generateCode = () => {
+      setSyncStatus("In Sync"); // Set to In Sync when generating starts
+      const newCode = Math.floor(1000 + Math.random() * 9000).toString(); // Generates 4-digit code
+      console.log("Generated Code:", newCode); // Debug log
+      setGeneratedCode(newCode);
+      // Simulate sync process with a delay
+      setTimeout(() => {
+        setSyncStatus("Synced"); // Set to Synced after a short delay
+      }, 2000); // 2-second delay to mimic syncing
+    };
+
   return (
     <View style={styles.container}>
       {/* Map */}
@@ -385,9 +403,38 @@ const HomeScreen = () => {
       </View>
 
       {/* Top-Right Corner Button (Always Visible) */}
-      <TouchableOpacity style={styles.topRightButton}>
-        <Text style={styles.buttonText}>Assistant </Text>
+      {/* Top-Right Corner Button (Always Visible) */}
+      <TouchableOpacity style={styles.topRightButton} onPress={() => setShowAssistantOverlay(true)}>
+        <Text style={styles.buttonText}>Assistant</Text>
       </TouchableOpacity>
+
+      {/* Assistant Overlay */}
+      {showAssistantOverlay && (
+        <View style={styles.overlay}>
+          <LinearGradient
+            colors={["#4facfe", "#00f2fe"]}
+            style={styles.overlayContent}
+          >
+            <View style={styles.syncContainer}>
+              <Text style={styles.syncLabel}>Sync:</Text>
+              <Text style={[styles.syncStatus, syncStatus === "Synced" && { color: "#00ff00" }]}>
+                {syncStatus}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.generateButton} onPress={generateCode}>
+              <Text style={styles.generateButtonText}>Generate</Text>
+            </TouchableOpacity>
+            {generatedCode && (
+              <View style={styles.codeContainer}>
+                <Text style={styles.generatedCodeText}>{generatedCode}</Text>
+              </View>
+            )}
+            <TouchableOpacity style={styles.closeButton} onPress={() => setShowAssistantOverlay(false)}>
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      )}
     </View>
   );
 };
@@ -533,6 +580,96 @@ const styles = StyleSheet.create({
   calloutText: {
     fontSize: 12,
     color: "#333",
+  },
+  // Assistant Code
+
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayContent: {
+    width: 280,
+    height: 280,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "space-around",
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  syncContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  syncLabel: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#fff",
+    marginRight: 10,
+  },
+  syncStatus: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  generateButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  generateButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  codeContainer: {
+    marginTop: 20, // Ensure space above the code
+    alignItems: "center",
+    marginBottom:100,
+  },
+  generatedCodeText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#000", // Changed to black for high contrast against gradient
+    backgroundColor: "rgba(255, 255, 255, 0.8)", // Increased opacity for better visibility
+    padding: 15,
+    borderRadius: 15,
+    textAlign: "center",
+    width: 120, // Slightly larger width for better readability
+  },
+  closeButton: {
+    backgroundColor: "#FF2D55",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    position: "absolute",
+    bottom: 20,
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

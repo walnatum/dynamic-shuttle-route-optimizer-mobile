@@ -384,10 +384,10 @@ const ParentScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Top-Right Corner Button (Always Visible) */}
-      <TouchableOpacity style={styles.topRightButton}>
+        {/* Top-Right Corner Button (Always Visible) */}
+        <TouchableOpacity style={styles.topRightButton} onPress={() => navigation.navigate("RouteTrackerScreen")}>
         <Text style={styles.buttonText}>Route Tracker</Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
     </View>
   );
 };
