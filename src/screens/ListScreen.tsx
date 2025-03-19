@@ -117,7 +117,7 @@ const ListScreen = () => {
                   style={styles.leaveButton}
                   onPress={() => removeStudent(item.id, item.name)}
                 >
-                  <Text style={styles.leaveButtonText}>Leave</Text>
+                  <Text style={styles.leaveButtonText}>OffBoard</Text>
                 </TouchableOpacity>
               </View>
             )}

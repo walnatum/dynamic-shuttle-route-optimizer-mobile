@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -24,15 +25,15 @@ const HomeScreen = () => {
   const [end, setEnd] = useState("");
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [parkingMarkers, setParkingMarkers] = useState([]);
-  const [travelTimes, setTravelTimes] = useState([]);
+  const [travelTimes, setTravelTimes] = useState([]); // Now only total time for multiple locations
   const [showRouteInput, setShowRouteInput] = useState(false);
   const [travelTimesByMode, setTravelTimesByMode] = useState(null);
-
-// Assistant code
-const [showAssistantOverlay, setShowAssistantOverlay] = useState(false);
-const [generatedCode, setGeneratedCode] = useState("");
-const [storedCode, setStoredCode] = useState(null); // Provision for storing code, not implemented yet
-const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: UnSync, In Sync, Synced
+  const [showAssistantOverlay, setShowAssistantOverlay] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [storedCode, setStoredCode] = useState(null);
+  const [syncStatus, setSyncStatus] = useState("UnSync");
+  const [timeMarkers, setTimeMarkers] = useState([]);
+  const [selectedTime, setSelectedTime] = useState(null);
 
   // Default location (Kampala, Uganda)
   const defaultLocation = {
@@ -42,7 +43,30 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
     longitudeDelta: 0.05,
   };
 
-
+  // Default locations around Kampala with descriptions
+  const timeBasedLocations = {
+    morning: [
+      { name: "City Square", latitude: 0.3163, longitude: 32.5820, description: "Central hub of Kampala with shops and offices." },
+      { name: "Makerere University", latitude: 0.3349, longitude: 32.5678, description: "Premier educational institution in Uganda." },
+      { name: "Nakivubo Market", latitude: 0.3114, longitude: 32.5761, description: "Busy market known for fresh produce." },
+      { name: "Kampala Road", latitude: 0.3176, longitude: 32.5866, description: "Main commercial street with banks." },
+      { name: "Owino Market", latitude: 0.3098, longitude: 32.5738, description: "Popular spot for second-hand goods." },
+    ],
+    afternoon: [
+      { name: "Lugogo Mall", latitude: 0.3262, longitude: 32.6058, description: "Shopping mall with various stores." },
+      { name: "Kololo Airstrip", latitude: 0.3278, longitude: 32.5978, description: "Open area often used for events." },
+      { name: "Garden City", latitude: 0.3168, longitude: 32.5912, description: "Modern mall with a cinema." },
+      { name: "Bugolobi Market", latitude: 0.3068, longitude: 32.6208, description: "Local market with fresh foods." },
+      { name: "Muyenga Hill", latitude: 0.2936, longitude: 32.6113, description: "Residential area with scenic views." },
+    ],
+    evening: [
+      { name: "Acacia Mall", latitude: 0.3375, longitude: 32.5869, description: "Upscale mall with dining options." },
+      { name: "Kabalagala", latitude: 0.2978, longitude: 32.5998, description: "Vibrant nightlife and eateries." },
+      { name: "Speke Resort", latitude: 0.2276, longitude: 32.6198, description: "Luxury resort by Lake Victoria." },
+      { name: "Victoria Mall", latitude: 0.2845, longitude: 32.6065, description: "Shopping center in Entebbe." },
+      { name: "Kasubi Tombs", latitude: 0.3298, longitude: 32.5534, description: "Historical site of Buganda kings." },
+    ],
+  };
 
   // Request location permission
   useEffect(() => {
@@ -74,7 +98,7 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
     requestLocationPermission();
   }, []);
 
-  // Calculate route using Google Maps Directions API for multiple modes
+  // Calculate route using Google Maps Directions API for normal navigation (start to end)
   const calculateRoute = async () => {
     if (!start || !end) {
       Alert.alert("Error", "Please enter both start and end locations.");
@@ -86,12 +110,40 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
       return;
     }
 
-    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg"; // Replace with your API key
+    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
     const modes = ["driving", "walking", "bicycling", "transit"];
     let timesByMode = {};
     let points = [];
 
+    // First, try driving mode to ensure the route is drawn
+    const drivingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
+      start
+    )}&destination=${encodeURIComponent(end)}&key=${apiKey}&mode=driving`;
+
+    try {
+      const response = await fetch(drivingUrl);
+      const data = await response.json();
+      if (data.status === "OK") {
+        points = decodePolyline(data.routes[0].overview_polyline.points);
+        setRouteCoordinates(points);
+        setParkingMarkers([]);
+        setTravelTimes([data.routes[0].legs[0].duration.text]);
+        mapRef.current.fitToCoordinates(points, {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        });
+        timesByMode["driving"] = data.routes[0].legs[0].duration.text;
+      } else {
+        Alert.alert("Error", "Could not find a driving route.");
+        return;
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to fetch driving route.");
+      return;
+    }
+
+    // Calculate times for other modes
     for (const mode of modes) {
+      if (mode === "driving") continue; // Already handled
       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
         start
       )}&destination=${encodeURIComponent(end)}&key=${apiKey}&mode=${mode}`;
@@ -100,15 +152,6 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
         const response = await fetch(url);
         const data = await response.json();
         if (data.status === "OK") {
-          if (mode === "driving") {
-            points = decodePolyline(data.routes[0].overview_polyline.points);
-            setRouteCoordinates(points);
-            setParkingMarkers([]);
-            setTravelTimes([data.routes[0].legs[0].duration.text]);
-            mapRef.current.fitToCoordinates(points, {
-              edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-            });
-          }
           timesByMode[mode] = data.routes[0].legs[0].duration.text;
         } else {
           timesByMode[mode] = "N/A";
@@ -156,14 +199,14 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
     return points;
   };
 
-  // Show parking locations with routes
+  // Show parking locations with routes (still using driving for parking)
   const showParkingLocations = async () => {
     if (!start) {
       Alert.alert("Error", "Please enter a starting location.");
       return;
     }
 
-    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg"; // Replace with your API key
+    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
     let newTravelTimes = [];
     let allCoordinates = [];
 
@@ -245,20 +288,148 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
     setTravelTimes([]);
     setTravelTimesByMode(null);
     setShowRouteInput(false);
+    setTimeMarkers([]);
+    setSelectedTime(null);
     mapRef.current.animateToRegion(defaultLocation);
   };
 
-// Assistant Code
-    const generateCode = () => {
-      setSyncStatus("In Sync"); // Set to In Sync when generating starts
-      const newCode = Math.floor(1000 + Math.random() * 9000).toString(); // Generates 4-digit code
-      console.log("Generated Code:", newCode); // Debug log
-      setGeneratedCode(newCode);
-      // Simulate sync process with a delay
-      setTimeout(() => {
-        setSyncStatus("Synced"); // Set to Synced after a short delay
-      }, 2000); // 2-second delay to mimic syncing
-    };
+  // Show time-based locations
+  const showTimeBasedLocations = (time) => {
+    setSelectedTime(time);
+    const locations = timeBasedLocations[time];
+    setTimeMarkers(locations);
+    mapRef.current.fitToCoordinates(locations, {
+      edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+    });
+  };
+
+  // Calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+  };
+
+  // Navigate to time-based locations sequentially by bus with fallback to driving
+  const navigateToTimeLocations = async () => {
+    if (!start) {
+      Alert.alert("Error", "Please enter a starting location.");
+      return;
+    }
+    if (!selectedTime) {
+      Alert.alert("Error", "Please select a time period (Morning, Afternoon, Evening).");
+      return;
+    }
+
+    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+    let totalDuration = 0;
+    let allCoordinates = [];
+    let locations = [...timeBasedLocations[selectedTime]]; // Copy to sort
+
+    // Get starting coordinates for sorting
+    let startCoords = null;
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+      start
+    )}&key=${apiKey}`;
+    try {
+      const response = await fetch(geocodeUrl);
+      const data = await response.json();
+      if (data.status === "OK") {
+        startCoords = data.results[0].geometry.location;
+      } else {
+        Alert.alert("Error", "Could not geocode starting point.");
+        return;
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      Alert.alert("Error", "Failed to geocode starting point.");
+      return;
+    }
+
+    // Sort locations by distance from starting point
+    locations.sort((a, b) => {
+      const distA = calculateDistance(
+        startCoords.lat,
+        startCoords.lng,
+        a.latitude,
+        a.longitude
+      );
+      const distB = calculateDistance(
+        startCoords.lat,
+        startCoords.lng,
+        b.latitude,
+        b.longitude
+      );
+      return distA - distB;
+    });
+
+    // Start from the user-entered starting point
+    let currentOrigin = start;
+
+    for (let i = 0; i < locations.length; i++) {
+      const destination = `${locations[i].latitude},${locations[i].longitude}`;
+      let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
+        currentOrigin
+      )}&destination=${encodeURIComponent(destination)}&key=${apiKey}&mode=transit`;
+
+      try {
+        let response = await fetch(url);
+        let data = await response.json();
+        if (data.status !== "OK") {
+          // Fallback to driving mode
+          url = url.replace("mode=transit", "mode=driving");
+          response = await fetch(url);
+          data = await response.json();
+        }
+
+        if (data.status === "OK") {
+          const points = decodePolyline(data.routes[0].overview_polyline.points);
+          allCoordinates = [...allCoordinates, ...points];
+          totalDuration += data.routes[0].legs[0].duration.value; // Add duration in seconds
+          currentOrigin = destination; // Next leg starts from this location
+        }
+      } catch (error) {
+        console.error("Error fetching route:", error);
+      }
+    }
+
+    // Convert total duration from seconds to a readable format
+    const hours = Math.floor(totalDuration / 3600);
+    const minutes = Math.floor((totalDuration % 3600) / 60);
+    const totalTimeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+    // Only store the total time
+    setRouteCoordinates(allCoordinates);
+    setTravelTimes([`Total Travel Time: ${totalTimeText}`]);
+    mapRef.current.fitToCoordinates(allCoordinates, {
+      edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+    });
+  };
+
+  // Placeholder for Add PickUp Points
+  const addPickUpPoints = () => {
+    Alert.alert("Feature Not Implemented", "Add PickUp Points functionality coming soon!");
+  };
+
+  // Assistant Code
+  const generateCode = () => {
+    setSyncStatus("In Sync");
+    const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+    console.log("Generated Code:", newCode);
+    setGeneratedCode(newCode);
+    setTimeout(() => {
+      setSyncStatus("Synced");
+    }, 2000);
+  };
 
   return (
     <View style={styles.container}>
@@ -280,16 +451,33 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
             pinColor="red"
           />
         ))}
-        {start && routeCoordinates.length > 0 && (
+        {timeMarkers.map((marker, index) => (
           <Marker
-            coordinate={routeCoordinates[0]}
-            pinColor="green"
+            key={index}
+            coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
+            title={marker.name}
+            pinColor={selectedTime === "morning" ? "orange" : selectedTime === "afternoon" ? "yellow" : "purple"}
           >
+            <Callout>
+              <View style={styles.callout}>
+                <Text style={styles.calloutTitle}>{marker.name}</Text>
+                <Text style={styles.calloutDescription}>{marker.description}</Text>
+                <Text style={styles.calloutText}>
+                  Coords: {marker.latitude}, {marker.longitude}
+                </Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+        {start && routeCoordinates.length > 0 && (
+          <Marker coordinate={routeCoordinates[0]} pinColor="green">
             <Callout>
               <View style={styles.callout}>
                 <Text style={styles.calloutTitle}>Start Point</Text>
                 <Text style={styles.calloutText}>Location: {start}</Text>
-                <Text style={styles.calloutText}>Coords: {routeCoordinates[0].latitude}, {routeCoordinates[0].longitude}</Text>
+                <Text style={styles.calloutText}>
+                  Coords: {routeCoordinates[0].latitude}, {routeCoordinates[0].longitude}
+                </Text>
               </View>
             </Callout>
           </Marker>
@@ -303,7 +491,10 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
               <View style={styles.callout}>
                 <Text style={styles.calloutTitle}>Destination</Text>
                 <Text style={styles.calloutText}>Location: {end}</Text>
-                <Text style={styles.calloutText}>Coords: {routeCoordinates[routeCoordinates.length - 1].latitude}, {routeCoordinates[routeCoordinates.length - 1].longitude}</Text>
+                <Text style={styles.calloutText}>
+                  Coords: {routeCoordinates[routeCoordinates.length - 1].latitude},{" "}
+                  {routeCoordinates[routeCoordinates.length - 1].longitude}
+                </Text>
               </View>
             </Callout>
           </Marker>
@@ -320,7 +511,7 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
         </TouchableOpacity>
       )}
 
-      {/* Directions Input (Visible after clicking RouteWise) */}
+      {/* Directions Input and Time Buttons */}
       {showRouteInput && !travelTimesByMode && (
         <View style={styles.inputContainer}>
           <LinearGradient
@@ -352,12 +543,48 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
               placeholderTextColor="#ffffff"
             />
           </LinearGradient>
+
+          {/* Time-Based Buttons */}
+          <View style={styles.timeButtonRow}>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => showTimeBasedLocations("morning")}
+            >
+              <Text style={styles.buttonText}>Morning</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => showTimeBasedLocations("afternoon")}
+            >
+              <Text style={styles.buttonText}>Afternoon</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => showTimeBasedLocations("evening")}
+            >
+              <Text style={styles.buttonText}>Evening</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={addPickUpPoints}
+            >
+              <Text style={styles.buttonText}>Add PickUp Points</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Navigate Time Locations Button */}
+          <TouchableOpacity
+            style={styles.navigateButton}
+            onPress={navigateToTimeLocations}
+          >
+            <Text style={styles.buttonText}>Navigate Time Locations</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* Action Buttons or Travel Times Panel (Below the Screen) */}
+      {/* Action Buttons or Travel Times Panel */}
       <View style={styles.bottomContainer}>
-        {showRouteInput && !travelTimesByMode && (
+        {showRouteInput && !travelTimesByMode && !travelTimes.length > 0 && (
           <View style={styles.buttonRow}>
             <Button title="Get Directions" onPress={calculateRoute} />
             <Button title="Use My Location" onPress={useCurrentLocation} />
@@ -377,19 +604,17 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
             <Button title="Cancel" onPress={resetMap} />
           </View>
         )}
+
+        {travelTimes.length > 0 && (
+          <View style={styles.travelTimesPanel}>
+            <Text style={styles.timeTitle}>Estimated Travel Time</Text>
+            <Text style={styles.timeText}>{travelTimes[0]}</Text>
+            <Button title="Cancel" onPress={resetMap} />
+          </View>
+        )}
       </View>
 
-      {/* Travel Times Panel for Parking (Left Side) */}
-      {travelTimes.length > 0 && (
-        <ScrollView style={styles.timePanel}>
-          <Text style={styles.timeTitle}>Estimated Travel Times</Text>
-          {travelTimes.map((time, index) => (
-            <Text key={index} style={styles.timeText}>{time}</Text>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Floating Buttons (Bottom) */}
+      {/* Floating Buttons */}
       <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Weather</Text>
@@ -402,9 +627,11 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
         </TouchableOpacity>
       </View>
 
-      {/* Top-Right Corner Button (Always Visible) */}
-      {/* Top-Right Corner Button (Always Visible) */}
-      <TouchableOpacity style={styles.topRightButton} onPress={() => setShowAssistantOverlay(true)}>
+      {/* Top-Right Corner Button */}
+      <TouchableOpacity
+        style={styles.topRightButton}
+        onPress={() => setShowAssistantOverlay(true)}
+      >
         <Text style={styles.buttonText}>Assistant</Text>
       </TouchableOpacity>
 
@@ -417,7 +644,12 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
           >
             <View style={styles.syncContainer}>
               <Text style={styles.syncLabel}>Sync:</Text>
-              <Text style={[styles.syncStatus, syncStatus === "Synced" && { color: "#00ff00" }]}>
+              <Text
+                style={[
+                  styles.syncStatus,
+                  syncStatus === "Synced" && { color: "#00ff00" },
+                ]}
+              >
                 {syncStatus}
               </Text>
             </View>
@@ -429,7 +661,10 @@ const [syncStatus, setSyncStatus] = useState("UnSync"); // Track sync states: Un
                 <Text style={styles.generatedCodeText}>{generatedCode}</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.closeButton} onPress={() => setShowAssistantOverlay(false)}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowAssistantOverlay(false)}
+            >
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </LinearGradient>
@@ -486,7 +721,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: "absolute",
-    bottom: 80, // Above the floating buttons
+    bottom: 80,
     left: 10,
     right: 10,
     alignItems: "center",
@@ -494,12 +729,13 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     minHeight: 80,
-    maxHeight: 120,
+    maxHeight: 150,
   },
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
+    flexWrap: "wrap",
   },
   travelTimesPanel: {
     width: "100%",
@@ -510,24 +746,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
     marginBottom: 10,
-  },
-  timePanel: {
-    position: "absolute",
-    top: 150,
-    left: 10,
-    width: "40%",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    padding: 10,
-    borderRadius: 5,
-    maxHeight: "50%",
+    flexWrap: "wrap",
   },
   timeTitle: {
     fontWeight: "bold",
+    fontSize: 16,
     marginBottom: 5,
   },
   timeText: {
-    marginHorizontal: 5,
     fontSize: 14,
+    color: "#333",
+    marginVertical: 5,
   },
   floatingButtons: {
     position: "absolute",
@@ -577,19 +806,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
   },
+  calloutDescription: {
+    fontSize: 12,
+    color: "#333",
+    marginBottom: 5,
+    minHeight: 40,
+  },
   calloutText: {
     fontSize: 12,
     color: "#333",
   },
-  // Assistant Code
-
+  timeButtonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    flexWrap: "wrap",
+  },
+  timeButton: {
+    backgroundColor: "#FF9500",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    elevation: 5,
+    margin: 2,
+  },
+  navigateButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginTop: 10,
+    alignSelf: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    elevation: 5,
+  },
   overlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -639,19 +901,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   codeContainer: {
-    marginTop: 20, // Ensure space above the code
+    marginTop: 20,
     alignItems: "center",
-    marginBottom:100,
+    marginBottom: 100,
   },
   generatedCodeText: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000", // Changed to black for high contrast against gradient
-    backgroundColor: "rgba(255, 255, 255, 0.8)", // Increased opacity for better visibility
+    color: "#000",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
     padding: 15,
     borderRadius: 15,
     textAlign: "center",
-    width: 120, // Slightly larger width for better readability
+    width: 120,
   },
   closeButton: {
     backgroundColor: "#FF2D55",
