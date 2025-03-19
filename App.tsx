@@ -10,6 +10,10 @@ import ParentScreen from './src/screens/ParentScreen';
 import RouteTrackerScreen from './src/screens/RouteTrackerScreen';
 import AssistantScreen from './src/screens/AssistantScreen';
 import ListScreen from './src/screens/ListScreen';
+import LogScreen from './src/screens/LogScreen';
+import ParentLogScreen from './src/screens/ParentLogScreen';
+import AssistantLogScreen from './src/screens/AssistantLogScreen';
+
 
 
 
@@ -37,6 +41,12 @@ function App() {
           <Stack.Screen name="RouteTrackerScreen" component={RouteTrackerScreen} />
           <Stack.Screen name="AssistantScreen" component={AssistantScreen} />
           <Stack.Screen name="ListScreen" component={ListScreen} />
+          <Stack.Screen name="LogScreen" component={LogScreen} />
+          <Stack.Screen name="ParentLogScreen" component={ParentLogScreen} />
+          <Stack.Screen name="AssistantLogScreen" component={AssistantLogScreen} />
+
+
+
 
 
         

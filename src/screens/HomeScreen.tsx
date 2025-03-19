@@ -14,6 +14,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-native-maps";
 import LinearGradient from "react-native-linear-gradient";
+import Icon from "react-native-vector-icons/MaterialIcons"; // Import icon library for cancel icon
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -33,7 +34,7 @@ const HomeScreen = () => {
   const [syncStatus, setSyncStatus] = useState("UnSync");
   const [timeMarkers, setTimeMarkers] = useState([]);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [hideInputs, setHideInputs] = useState(false); // New state to hide inputs
+  const [hideInputs, setHideInputs] = useState(false);
 
   // Default location (Kampala, Uganda)
   const defaultLocation = {
@@ -311,7 +312,7 @@ const HomeScreen = () => {
     setShowRouteInput(false);
     setTimeMarkers([]);
     setSelectedTime(null);
-    setHideInputs(false); // Show inputs again on reset
+    setHideInputs(false);
     mapRef.current.animateToRegion(defaultLocation);
   };
 
@@ -570,6 +571,14 @@ const HomeScreen = () => {
       {/* Directions Input and Time Buttons */}
       {showRouteInput && !travelTimesByMode && !hideInputs && (
         <View style={styles.inputContainer}>
+          {/* Cancel Icon */}
+          <TouchableOpacity
+            style={styles.cancelIcon}
+            onPress={() => setShowRouteInput(false)}
+          >
+            <Icon name="cancel" size={30} color="#FF2D55" />
+          </TouchableOpacity>
+
           <LinearGradient
             colors={["#4facfe", "#00f2fe"]}
             style={styles.inputWrapper}
@@ -619,12 +628,6 @@ const HomeScreen = () => {
               onPress={() => showTimeBasedLocations("evening")}
             >
               <Text style={styles.buttonText}>Evening</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.timeButton}
-              onPress={addPickUpPoints}
-            >
-              <Text style={styles.buttonText}>Add PickUp Points</Text>
             </TouchableOpacity>
           </View>
 
@@ -687,9 +690,12 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Top-Right Corner Button */}
+      {/* Top-Right Corner Button (Assistant) - Positioned dynamically */}
       <TouchableOpacity
-        style={styles.topRightButton}
+        style={[
+          styles.topRightButton,
+          showRouteInput && !hideInputs && { top: 220 }, // Adjust position when input fields are visible
+        ]}
         onPress={() => setShowAssistantOverlay(true)}
       >
         <Text style={styles.buttonText}>Assistant</Text>
@@ -779,13 +785,19 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.1)",
     borderRadius: 25,
   },
+  cancelIcon: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 1,
+  },
   bottomContainer: {
     position: "absolute",
     bottom: 80,
     left: 10,
     right: 10,
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "transparent", // Changed to transparent to remove white background
     padding: 10,
     borderRadius: 10,
     minHeight: 80,
@@ -800,6 +812,9 @@ const styles = StyleSheet.create({
   travelTimesPanel: {
     width: "100%",
     alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)", // Keep background for travel times panel
+    padding: 10,
+    borderRadius: 10,
   },
   timeRow: {
     flexDirection: "row",
@@ -843,7 +858,7 @@ const styles = StyleSheet.create({
   },
   topRightButton: {
     position: "absolute",
-    top: 10,
+    top: 10, // Default position
     right: 10,
     backgroundColor: "#FF9500",
     paddingVertical: 10,

@@ -1,94 +1,85 @@
 
-
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import React, { useState, useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../../App'; 
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
 const LoginScreen = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    console.log('Logging in with:', email, password);
-    try {
-      navigation.navigate('HomeScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Home screen');
-    }
-  };
+  // Remove the header (Login label) by setting headerShown to false
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   const goToHome = () => {
-    console.log("Navigating to HomeScreen...");
+    console.log("Navigating to LogScreen...");
     try {
-      navigation.navigate('HomeScreen');
+      navigation.navigate('LogScreen');
     } catch (error) {
       console.error('Navigation error:', error);
       Alert.alert('Navigation Error', 'Could not navigate to Home screen');
     }
   };
 
-  const goToParent = () => {
-    console.log("Navigating to ParentScreen...");
-    try {
-      navigation.navigate('ParentScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
-    }
-  };
+  // const goToParent = () => {
+  //   console.log("Navigating to ParentScreen...");
+  //   try {
+  //     navigation.navigate('ParentScreen');
+  //   } catch (error) {
+  //     console.error('Navigation error:', error);
+  //     Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
+  //   }
+  // };
 
-  const goToAssistant = () => {
-    console.log("Navigating to ParentScreen...");
-    try {
-      navigation.navigate('AssistantScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
-    }
-  };
-
-
+  // const goToAssistant = () => {
+  //   console.log("Navigating to AssistantScreen...");
+  //   try {
+  //     navigation.navigate('AssistantScreen');
+  //   } catch (error) {
+  //     console.error('Navigation error:', error);
+  //     Alert.alert('Navigation Error', 'Could not navigate to Assistant screen');
+  //   }
+  // };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login Here</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <Button title="Login" onPress={handleLogin} />
-      
-      <View style={styles.buttonSpacing}>
-        <Button title="Go to Home" onPress={goToHome} color="#841584" />
+    <LinearGradient
+      colors={['#4facfe', '#00f2fe']}
+      style={styles.container}
+    >
+      <View style={styles.overlay}>
+        {/* Welcome Header */}
+        <Text style={styles.title}>Welcome to RouteWise</Text>
+        <Text style={styles.subtitle}>Your Journey, Our Priority</Text>
+
+        {/* Icon or Logo (Placeholder) */}
+        <View style={styles.iconContainer}>
+          <Text style={styles.icon}>🗺️</Text>
+        </View>
+
+        {/* Navigation Buttons */}
+        <TouchableOpacity style={styles.button} onPress={goToHome}>
+          <Text style={styles.buttonText}>Login</Text>
+        </TouchableOpacity>
+
+        {/* <TouchableOpacity style={[styles.button, styles.parentButton]} onPress={goToParent}>
+          <Text style={styles.buttonText}>The Parent</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.button, styles.assistantButton]} onPress={goToAssistant}>
+          <Text style={styles.buttonText}>The Assistant</Text>
+        </TouchableOpacity> */}
+
+        {/* Footer Text */}
+        <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
       </View>
-
-      <View style={styles.buttonSpacing}>
-        <Button title="Go to ParentScreen" onPress={goToParent} color="#007AFF" />
-      </View>
-
-      <View style={styles.buttonSpacing}>
-        <Button title="Go to AssistantScreen" onPress={goToAssistant} color="#007AFF" />
-      </View>
-
-
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -96,25 +87,80 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Slight overlay for better text readability
   },
   title: {
-    fontSize: 24,
+    fontSize: 36,
     fontWeight: 'bold',
+    color: '#fff',
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
     marginBottom: 10,
-    paddingHorizontal: 10,
-    borderRadius: 5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 5,
   },
-  buttonSpacing: {
-    marginTop: 10,
+  subtitle: {
+    fontSize: 18,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 30,
+    fontStyle: 'italic',
+    opacity: 0.9,
+  },
+  iconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 50,
+    padding: 20,
+    marginBottom: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  icon: {
+    fontSize: 50,
+  },
+  button: {
+    backgroundColor: '#841584',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginVertical: 10,
+    width: '80%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  parentButton: {
+    backgroundColor: '#007AFF',
+  },
+  assistantButton: {
+    backgroundColor: '#FF9500',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  footerText: {
+    position: 'absolute',
+    bottom: 20,
+    fontSize: 14,
+    color: '#fff',
+    textAlign: 'center',
+    opacity: 0.7,
   },
 });
 
