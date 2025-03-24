@@ -36,6 +36,17 @@ const HomeScreen = () => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [hideInputs, setHideInputs] = useState(false);
 
+
+    const goToTraffic = () => {
+      console.log("Navigating to LogScreen...");
+      try {
+        navigation.navigate('TrafficScreen');
+      } catch (error) {
+        console.error('Navigation error:', error);
+        Alert.alert('Navigation Error', 'Could not navigate to Home screen');
+      }
+    };
+
   // Default location (Kampala, Uganda)
   const defaultLocation = {
     latitude: 0.3476,
@@ -489,6 +500,7 @@ const HomeScreen = () => {
   };
 
   return (
+
     <View style={styles.container}>
       {/* Map */}
       <MapView
@@ -677,14 +689,22 @@ const HomeScreen = () => {
         )}
       </View>
 
+
       {/* Floating Buttons */}
       <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Weather</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton}>
+
+        {/* <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Traffic</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
+
+        {/* Floating Button for Traffic */}
+        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+          <Text style={styles.buttonText}>Traffic</Text>
+        </TouchableOpacity> 
+
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Crash</Text>
         </TouchableOpacity>
@@ -1015,4 +1035,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default HomeScreen;  
+
+

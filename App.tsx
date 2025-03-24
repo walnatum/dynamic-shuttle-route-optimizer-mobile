@@ -13,6 +13,9 @@ import ListScreen from './src/screens/ListScreen';
 import LogScreen from './src/screens/LogScreen';
 import ParentLogScreen from './src/screens/ParentLogScreen';
 import AssistantLogScreen from './src/screens/AssistantLogScreen';
+import TrafficLogScreen from './src/screens/trafficscreen';
+import TrafficScreen from './src/screens/trafficscreen';
+
 
 
 
@@ -44,6 +47,8 @@ function App() {
           <Stack.Screen name="LogScreen" component={LogScreen} />
           <Stack.Screen name="ParentLogScreen" component={ParentLogScreen} />
           <Stack.Screen name="AssistantLogScreen" component={AssistantLogScreen} />
+          <Stack.Screen name="TrafficScreen" component={TrafficScreen} />
+
 
 
 
