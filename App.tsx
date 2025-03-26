@@ -15,6 +15,8 @@ import ParentLogScreen from './src/screens/ParentLogScreen';
 import AssistantLogScreen from './src/screens/AssistantLogScreen';
 import TrafficLogScreen from './src/screens/trafficscreen';
 import TrafficScreen from './src/screens/trafficscreen';
+import AdminScreen from './src/screens/AdminScreen'; // Adjust path as needed
+
 
 
 
@@ -48,6 +50,8 @@ function App() {
           <Stack.Screen name="ParentLogScreen" component={ParentLogScreen} />
           <Stack.Screen name="AssistantLogScreen" component={AssistantLogScreen} />
           <Stack.Screen name="TrafficScreen" component={TrafficScreen} />
+          <Stack.Screen name="AdminScreen" component={AdminScreen} />
+
 
 
 

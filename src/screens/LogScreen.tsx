@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../../App'; 
-import Icon from 'react-native-vector-icons/MaterialIcons'; // For icons
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 type LogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Log'>;
 
@@ -13,7 +13,6 @@ const LogScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Remove the header (Log label) by setting headerShown to false
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
@@ -51,6 +50,16 @@ const LogScreen = () => {
     } catch (error) {
       console.error('Navigation error:', error);
       Alert.alert('Navigation Error', 'Could not navigate to Assistant screen');
+    }
+  };
+
+  const goToAdmin = () => {
+    console.log("Navigating to AdminScreen...");
+    try {
+      navigation.navigate('AdminScreen');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Could not navigate to Admin screen');
     }
   };
 
@@ -143,13 +152,18 @@ const LogScreen = () => {
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>
 
-        {/* Role Buttons (As Parent, As Assistant) */}
+        {/* Role Buttons (As Parent, As Assistant, As Admin) */}
         <View style={styles.roleButtonContainer}>
           <TouchableOpacity style={[styles.roleButton, styles.parentButton]} onPress={goToParent}>
             <Text style={styles.roleButtonText}>As Parent</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity style={[styles.roleButton, styles.assistantButton]} onPress={goToAssistant}>
             <Text style={styles.roleButtonText}>As Assistant</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.roleButton, styles.assistantButton]} onPress={goToAdmin}>
+            <Text style={styles.roleButtonText}>As Admin</Text>
           </TouchableOpacity>
         </View>
 
@@ -172,7 +186,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Slight overlay for better text readability
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   backButton: {
     position: 'absolute',
@@ -233,7 +247,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   input: {
-    flex: 1, // Take up remaining space
+    flex: 1,
     height: 50,
     paddingHorizontal: 20,
     fontSize: 16,

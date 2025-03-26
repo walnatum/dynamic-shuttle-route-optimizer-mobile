@@ -16,12 +16,11 @@ const ListScreen = () => {
   const route = useRoute();
   const { assistantNameId, code } = route.params || {};
   const [students, setStudents] = useState([]);
-  const [leftStudents, setLeftStudents] = useState([]); // New state for off-boarded students
+  const [leftStudents, setLeftStudents] = useState([]);
   const [newStudentName, setNewStudentName] = useState("");
   const [errorMsg, setErrorMsg] = useState(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
-  // Default location (Kampala, Uganda - can be adjusted)
   const defaultLocation = {
     latitude: 0.3476,
     longitude: 32.5825,
@@ -29,7 +28,7 @@ const ListScreen = () => {
     longitudeDelta: 0.05,
   };
 
-  // Request location permission
+  // Handle location permission
   useEffect(() => {
     const requestLocationPermission = async () => {
       try {
@@ -59,21 +58,45 @@ const ListScreen = () => {
     requestLocationPermission();
   }, []);
 
-  // Add new student
+  // Timer to decrease ETA every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStudents((prevStudents) =>
+        prevStudents.map((student) => ({
+          ...student,
+          eta: student.eta > 0 ? student.eta - 1 : 0,
+        }))
+      );
+      setLeftStudents((prevLeft) =>
+        prevLeft.map((student) => ({ ...student, eta: 0 }))
+      );
+    }, 60000); // 60000ms = 1 minute
+
+    // Cleanup timer on component unmount
+    return () => clearInterval(timer);
+  }, []);
+
   const addStudent = () => {
     if (!newStudentName.trim()) {
       Alert.alert("Error", "Please enter a student name.");
       return;
     }
-    setStudents([...students, { id: Date.now().toString(), name: newStudentName, onboarded: false }]);
+    setStudents([
+      ...students,
+      { 
+        id: Date.now().toString(), 
+        name: newStudentName, 
+        onboarded: false,
+        eta: 10 // Start with 10 minutes for each new student
+      }
+    ]);
     setNewStudentName("");
   };
 
-  // Remove student and move to leftStudents
   const removeStudent = (id, name) => {
     const studentToRemove = students.find((student) => student.id === id);
     setStudents(students.filter((student) => student.id !== id));
-    setLeftStudents([...leftStudents, { id, name, left: true }]);
+    setLeftStudents([...leftStudents, { id, name, left: true, eta: 0 }]);
   };
 
   return (
@@ -111,7 +134,10 @@ const ListScreen = () => {
                 </Text>
                 <Text style={styles.studentName}>{item.name}</Text>
                 <Text style={styles.onboardStatus}>
-                  {item.onboarded ? "Onboard" : " Onboard"}
+                  {item.onboarded ? "Onboard" : "Onboard"}
+                </Text>
+                <Text style={styles.etaText}>
+                  {item.eta > 0 ? `ETA: ${item.eta} min` : "Reached"}
                 </Text>
                 <TouchableOpacity
                   style={styles.leaveButton}
@@ -136,6 +162,7 @@ const ListScreen = () => {
                   </Text>
                   <Text style={styles.studentName}>{item.name}</Text>
                   <Text style={styles.statusText}>Left</Text>
+                  <Text style={styles.etaText}>Reached</Text>
                 </View>
               )}
               keyExtractor={(item) => item.id}
@@ -154,7 +181,6 @@ const ListScreen = () => {
           <Text style={styles.buttonText}>Crash</Text>
         </TouchableOpacity>
       </View>
-      
     </View>
   );
 };
@@ -222,6 +248,11 @@ const styles = StyleSheet.create({
   },
   studentName: { flex: 1, fontSize: 16, color: "#333" },
   onboardStatus: { fontSize: 14, color: "#6b4e91", marginRight: 10 },
+  etaText: {
+    fontSize: 14,
+    color: "#666",
+    marginRight: 10,
+  },
   leaveButton: {
     backgroundColor: "#ff4444",
     paddingVertical: 5,
@@ -229,7 +260,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   leaveButtonText: { color: "#fff", fontSize: 14 },
-  statusText: { fontSize: 16, color: "#ff4444", marginLeft: 10 },
+  statusText: { fontSize: 16, color: "#ff4444", marginRight: 10 },
   floatingButtons: {
     position: "absolute",
     bottom: 20,
@@ -249,25 +280,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   buttonText: { color: "white", fontWeight: "bold" },
-  bottomNavContainer: {
-    position: "absolute",
-    bottom: 80,
-    left: 10,
-    right: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    padding: 10,
-    borderRadius: 10,
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  bottomNavTitle: { fontSize: 14, color: "#333", marginBottom: 5 },
-  bottomNavButtons: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-  },
-  navButton: { paddingVertical: 5, paddingHorizontal: 10 },
-  navButtonText: { fontSize: 14, color: "#007AFF" },
 });
 
 export default ListScreen;
