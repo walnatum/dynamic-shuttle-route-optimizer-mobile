@@ -10,7 +10,7 @@ import {
   Platform,
   PermissionsAndroid,
 } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 
 interface Student {
@@ -18,11 +18,21 @@ interface Student {
   name: string;
   school: string;
   onboarded: boolean;
+  student_code: string;
 }
 
+type RootStackParamList = {
+  ListScreen: {
+    assistantNameId?: string;
+    code?: string;
+  };
+};
+
+type ListScreenRouteProp = RouteProp<RootStackParamList, 'ListScreen'>;
+
 const ListScreen = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
+  //const navigation = useNavigation();
+  const route = useRoute<ListScreenRouteProp>();
   const { assistantNameId, code } = route.params || {};
   const [students, setStudents] = useState<Student[]>([]);
   const [leftStudents, setLeftStudents] = useState<Student[]>([]);
@@ -63,7 +73,7 @@ const ListScreen = () => {
     requestLocationPermission();
   }, []);
 
-  // Add new student
+  // On-board student onto the shuttle
   const addStudent = async () => {
     if (!newStudentCode.trim()) {
       Alert.alert("Error", "Please enter a student code.");
@@ -113,6 +123,7 @@ const ListScreen = () => {
         name: updatedStudentData.student_name,
         school: updatedStudentData.school_name,
         onboarded: updatedStudentData.onboarded,
+        student_code: updatedStudentData.student_code,
       };
 
       // Check if student already exists
@@ -129,18 +140,43 @@ const ListScreen = () => {
     }
   };
 
-  // Remove student function
-  const removeStudent = (id: string, name: string) => {
+  // Off-board student from the shuttle
+  const removeStudent = async (id: string, name: string) => {
     const studentToRemove = students.find((student) => student.id === id);
     if (!studentToRemove) return;
 
-    const updatedStudents = students.filter((student) => student.id !== id);
-    setStudents(updatedStudents);
+    try {
+      // Update onboarded status to false on the backend
+      const response = await fetch(`http://192.168.216.163:8000/api/students/${studentToRemove.student_code}/`, {
+        method: "PATCH",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ onboarded: false }),
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Offboard error:", response.status, errorText);
+        throw new Error(`Failed to offboard student. Status: ${response.status}`);
+      }
+  
+      const updatedStudentData = await response.json();
+      console.log("Offboarded student:", updatedStudentData);
 
-    setLeftStudents((prevLeftStudents) => [
-      ...prevLeftStudents,
-      { id, name, school: studentToRemove.school, onboarded: false },
-    ]);
+      // Update local state
+      const updatedStudents = students.filter((student) => student.id !== id);
+      setStudents(updatedStudents);
+
+      setLeftStudents((prevLeftStudents) => [
+        ...prevLeftStudents,
+        { id, name, school: studentToRemove.school, onboarded: false, student_code: studentToRemove.student_code },
+      ]);
+    } catch (error: any) {
+      console.error("Error offboarding student:", error.message);
+      Alert.alert("Error", error.message || "Failed to offboard student.");
+    }
   };
 
   return (
@@ -172,16 +208,13 @@ const ListScreen = () => {
 
         {/* Students List */}
         <View style={styles.studentList}>
-          <Text style={styles.listTitle}>Student Names</Text>
+          <Text style={styles.listTitle}>On-boarded students</Text>
           <FlatList
             data={students}
             renderItem={({ item }) => (
               <View style={styles.studentItem}>
                 <Text style={styles.studentInitial}>{item.name.charAt(0).toUpperCase()}</Text>
                 <Text style={styles.studentName}>{item.name}</Text>
-                <Text style={styles.onboardStatus}>
-                  {item.onboarded ? "Onboard" : "Not Onboard"}
-                </Text>
                 <TouchableOpacity
                   style={styles.leaveButton}
                   onPress={() => removeStudent(item.id, item.name)}
@@ -197,7 +230,7 @@ const ListScreen = () => {
         {/* Left Students List */}
         {leftStudents.length > 0 && (
           <View style={styles.studentList}>
-            <Text style={styles.listTitle}>Left/Off Board</Text>
+            <Text style={styles.listTitle}>Off-boarded students</Text>
             <FlatList
               data={leftStudents}
               renderItem={({ item }) => (
@@ -230,76 +263,137 @@ const ListScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#f5f5f5" // Light gray background for a cleaner look
+  },
+  map: { 
+    flex: 1 
+  },
   infoContainer: {
     position: "absolute",
     top: 10,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    padding: 10,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  info: { fontSize: 16, color: "#333", marginBottom: 5, textAlign: "center" },
-  inputContainer: {
-    position: "absolute",
-    top: 60,
     left: 10,
     right: 10,
-    padding: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.95)", // Slightly more opaque
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  info: { 
+    fontSize: 16, 
+    color: "#333", 
+    marginBottom: 5, 
+    fontWeight: "600" // Bolder text
+  },
+  inputContainer: {
+    position: "absolute",
+    top: 80, // Adjusted for better spacing below info
+    left: 10,
+    right: 10,
+    padding: 15,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 10,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 5,
     elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowRadius: 3,
   },
-  input: { flex: 1, height: 40, fontSize: 16, color: "#333" },
+  input: { 
+    flex: 1, 
+    height: 45, 
+    fontSize: 16, 
+    color: "#333" 
+  },
   addButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    backgroundColor: "#28a745", // Green for "Add"
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 8,
     marginLeft: 10,
   },
-  addButtonText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
-  studentList: { backgroundColor: "#f0e8f5", borderRadius: 8, padding: 10, marginBottom: 10 },
-  listTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 5, color: "#333" },
+  addButtonText: { 
+    color: "#fff", 
+    fontSize: 14, 
+    fontWeight: "bold" 
+  },
+  studentList: { 
+    backgroundColor: "#fff", // White for contrast
+    borderRadius: 12, 
+    padding: 15, 
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  listTitle: { 
+    fontSize: 18, 
+    fontWeight: "700", 
+    marginBottom: 10, 
+    color: "#2c3e50" // Darker blue-gray
+  },
   studentItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 5,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: "#eee",
   },
   studentInitial: {
-    width: 20,
-    height: 20,
-    backgroundColor: "#d8b5e5",
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    backgroundColor: "#3498db", // Bright blue for initials
+    borderRadius: 20,
     textAlign: "center",
+    lineHeight: 40, // Center vertically
     color: "#fff",
-    marginRight: 10,
+    fontSize: 18,
+    fontWeight: "bold",
+    marginRight: 15,
   },
-  studentName: { flex: 1, fontSize: 16, color: "#333" },
-  onboardStatus: { fontSize: 14, color: "#6b4e91", marginRight: 10 },
+  studentName: { 
+    flex: 1, 
+    fontSize: 16, 
+    color: "#333",
+    fontWeight: "500"
+  },
+  onboardStatus: { 
+    fontSize: 14, 
+    color: "#6b4e91", 
+    marginRight: 10 
+  }, // Still here but not used for onboarded list
   leaveButton: {
-    backgroundColor: "#ff4444",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 5,
+    backgroundColor: "#dc3545", // Red for "OffBoard"
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
   },
-  leaveButtonText: { color: "#fff", fontSize: 14 },
-  statusText: { fontSize: 16, color: "#ff4444", marginLeft: 10 },
+  leaveButtonText: { 
+    color: "#fff", 
+    fontSize: 14, 
+    fontWeight: "bold" 
+  },
+  statusText: { 
+    fontSize: 14, 
+    color: "#dc3545", // Red for "Left"
+    marginLeft: 10,
+    fontWeight: "500"
+  },
   floatingButtons: {
     position: "absolute",
     bottom: 20,
@@ -309,16 +403,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
   },
   floatingButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    backgroundColor: "#007bff", // Slightly brighter blue
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
     elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
-  buttonText: { color: "white", fontWeight: "bold" },
+  buttonText: { 
+    color: "white", 
+    fontWeight: "bold",
+    fontSize: 14 
+  },
 });
 
 export default ListScreen;
