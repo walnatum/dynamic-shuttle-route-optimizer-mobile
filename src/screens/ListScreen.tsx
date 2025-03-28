@@ -7,18 +7,27 @@ import {
   TextInput,
   FlatList,
   Alert,
+  Platform,
+  PermissionsAndroid,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+
+interface Student {
+  id: string;
+  name: string;
+  school: string;
+  onboarded: boolean;
+}
 
 const ListScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { assistantNameId, code } = route.params || {};
-  const [students, setStudents] = useState([]);
-  const [leftStudents, setLeftStudents] = useState([]);
-  const [newStudentName, setNewStudentName] = useState("");
-  const [errorMsg, setErrorMsg] = useState(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [leftStudents, setLeftStudents] = useState<Student[]>([]);
+  const [newStudentCode, setNewStudentCode] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   const defaultLocation = {
@@ -28,7 +37,7 @@ const ListScreen = () => {
     longitudeDelta: 0.05,
   };
 
-  // Handle location permission
+  // Location permission request
   useEffect(() => {
     const requestLocationPermission = async () => {
       try {
@@ -43,11 +52,7 @@ const ListScreen = () => {
               buttonPositive: "OK",
             }
           );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            setPermissionGranted(true);
-          } else {
-            setErrorMsg("Location permission denied");
-          }
+          setPermissionGranted(granted === PermissionsAndroid.RESULTS.GRANTED);
         } else {
           setPermissionGranted(true);
         }
@@ -58,45 +63,84 @@ const ListScreen = () => {
     requestLocationPermission();
   }, []);
 
-  // Timer to decrease ETA every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setStudents((prevStudents) =>
-        prevStudents.map((student) => ({
-          ...student,
-          eta: student.eta > 0 ? student.eta - 1 : 0,
-        }))
-      );
-      setLeftStudents((prevLeft) =>
-        prevLeft.map((student) => ({ ...student, eta: 0 }))
-      );
-    }, 60000); // 60000ms = 1 minute
-
-    // Cleanup timer on component unmount
-    return () => clearInterval(timer);
-  }, []);
-
-  const addStudent = () => {
-    if (!newStudentName.trim()) {
-      Alert.alert("Error", "Please enter a student name.");
+  // Add new student
+  const addStudent = async () => {
+    if (!newStudentCode.trim()) {
+      Alert.alert("Error", "Please enter a student code.");
       return;
     }
-    setStudents([
-      ...students,
-      { 
-        id: Date.now().toString(), 
-        name: newStudentName, 
-        onboarded: false,
-        eta: 10 // Start with 10 minutes for each new student
+
+    try {
+      console.log(`Fetching student with code: ${newStudentCode}`);
+      const fetchResponse = await fetch(`http://192.168.216.163:8000/api/students/${newStudentCode}/`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!fetchResponse.ok) {
+        const errorText = await fetchResponse.text();
+        console.error("Fetch error:", fetchResponse.status, errorText);
+        throw new Error(`Student not found. Status: ${fetchResponse.status}`);
       }
-    ]);
-    setNewStudentName("");
+
+      const studentData = await fetchResponse.json();
+      console.log("Fetched student:", studentData);
+
+      // Update onboarded status on the backend
+      const updateResponse = await fetch(`http://192.168.216.163:8000/api/students/${newStudentCode}/`, {
+        method: "PATCH",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ onboarded: true }),
+      });
+
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        console.error("Update error:", updateResponse.status, errorText);
+        throw new Error(`Failed to update student. Status: ${updateResponse.status}`);
+      }
+
+      const updatedStudentData = await updateResponse.json();
+      console.log("Updated student:", updatedStudentData);
+
+      const newStudent: Student = {
+        id: updatedStudentData.id,
+        name: updatedStudentData.student_name,
+        school: updatedStudentData.school_name,
+        onboarded: updatedStudentData.onboarded,
+      };
+
+      // Check if student already exists
+      if (students.some((existingStudent) => existingStudent.id === newStudent.id)) {
+        Alert.alert("Error", "Student is already in the list.");
+        return;
+      }
+
+      setStudents((prevStudents) => [...prevStudents, newStudent]);
+      setNewStudentCode(""); // Reset input
+    } catch (error: any) {
+      console.error("Error fetching student:", error.message);
+      Alert.alert("Error", error.message || "Failed to fetch student. Check the code or network.");
+    }
   };
 
-  const removeStudent = (id, name) => {
+  // Remove student function
+  const removeStudent = (id: string, name: string) => {
     const studentToRemove = students.find((student) => student.id === id);
-    setStudents(students.filter((student) => student.id !== id));
-    setLeftStudents([...leftStudents, { id, name, left: true, eta: 0 }]);
+    if (!studentToRemove) return;
+
+    const updatedStudents = students.filter((student) => student.id !== id);
+    setStudents(updatedStudents);
+
+    setLeftStudents((prevLeftStudents) => [
+      ...prevLeftStudents,
+      { id, name, school: studentToRemove.school, onboarded: false },
+    ]);
   };
 
   return (
@@ -106,38 +150,37 @@ const ListScreen = () => {
         provider={PROVIDER_GOOGLE}
         initialRegion={defaultLocation}
       />
+
       <View style={styles.infoContainer}>
         <Text style={styles.info}>Assistant Name/Id: {assistantNameId || "N/A"}</Text>
         <Text style={styles.info}>Code: {code || "N/A"}</Text>
       </View>
+
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
-            placeholder="Add Student Name"
-            value={newStudentName}
-            onChangeText={setNewStudentName}
+            placeholder="Enter student code"
+            value={newStudentCode}
+            onChangeText={setNewStudentCode}
             placeholderTextColor="#666"
           />
           <TouchableOpacity style={styles.addButton} onPress={addStudent}>
             <Text style={styles.addButtonText}>Add</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Students List */}
         <View style={styles.studentList}>
           <Text style={styles.listTitle}>Student Names</Text>
           <FlatList
             data={students}
             renderItem={({ item }) => (
               <View style={styles.studentItem}>
-                <Text style={styles.studentInitial}>
-                  {item.name.charAt(0).toUpperCase()}
-                </Text>
+                <Text style={styles.studentInitial}>{item.name.charAt(0).toUpperCase()}</Text>
                 <Text style={styles.studentName}>{item.name}</Text>
                 <Text style={styles.onboardStatus}>
-                  {item.onboarded ? "Onboard" : "Onboard"}
-                </Text>
-                <Text style={styles.etaText}>
-                  {item.eta > 0 ? `ETA: ${item.eta} min` : "Reached"}
+                  {item.onboarded ? "Onboard" : "Not Onboard"}
                 </Text>
                 <TouchableOpacity
                   style={styles.leaveButton}
@@ -150,6 +193,8 @@ const ListScreen = () => {
             keyExtractor={(item) => item.id}
           />
         </View>
+
+        {/* Left Students List */}
         {leftStudents.length > 0 && (
           <View style={styles.studentList}>
             <Text style={styles.listTitle}>Left/Off Board</Text>
@@ -157,12 +202,9 @@ const ListScreen = () => {
               data={leftStudents}
               renderItem={({ item }) => (
                 <View style={styles.studentItem}>
-                  <Text style={styles.studentInitial}>
-                    {item.name.charAt(0).toUpperCase()}
-                  </Text>
+                  <Text style={styles.studentInitial}>{item.name.charAt(0).toUpperCase()}</Text>
                   <Text style={styles.studentName}>{item.name}</Text>
                   <Text style={styles.statusText}>Left</Text>
-                  <Text style={styles.etaText}>Reached</Text>
                 </View>
               )}
               keyExtractor={(item) => item.id}
@@ -170,6 +212,8 @@ const ListScreen = () => {
           </View>
         )}
       </View>
+
+      {/* Floating Buttons */}
       <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Weather</Text>
@@ -248,11 +292,6 @@ const styles = StyleSheet.create({
   },
   studentName: { flex: 1, fontSize: 16, color: "#333" },
   onboardStatus: { fontSize: 14, color: "#6b4e91", marginRight: 10 },
-  etaText: {
-    fontSize: 14,
-    color: "#666",
-    marginRight: 10,
-  },
   leaveButton: {
     backgroundColor: "#ff4444",
     paddingVertical: 5,
@@ -260,7 +299,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   leaveButtonText: { color: "#fff", fontSize: 14 },
-  statusText: { fontSize: 16, color: "#ff4444", marginRight: 10 },
+  statusText: { fontSize: 16, color: "#ff4444", marginLeft: 10 },
   floatingButtons: {
     position: "absolute",
     bottom: 20,

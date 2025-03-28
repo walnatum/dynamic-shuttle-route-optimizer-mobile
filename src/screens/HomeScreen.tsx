@@ -15,6 +15,9 @@ import { useNavigation } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-native-maps";
 import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/MaterialIcons"; // Import icon library for cancel icon
+import { RootStackParamList } from "../../App";
+
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'HomeScreen'>;
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -36,6 +39,16 @@ const HomeScreen = () => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [hideInputs, setHideInputs] = useState(false);
 
+
+  const goToTest = () => {
+    console.log("Navigating to TestScreen...");
+    try {
+      navigation.navigate('Test');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Could not navigate to Test screen');
+    }
+  };
 
     const goToTraffic = () => {
       console.log("Navigating to LogScreen...");
@@ -707,6 +720,10 @@ const HomeScreen = () => {
 
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Crash</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.floatingButton} onPress={goToTest}>
+          <Text style={styles.buttonText}>Test</Text>
         </TouchableOpacity>
       </View>
 

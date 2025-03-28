@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import 'react-native-gesture-handler'; 
+import 'react-native-gesture-handler';
 
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -13,24 +13,21 @@ import ListScreen from './src/screens/ListScreen';
 import LogScreen from './src/screens/LogScreen';
 import ParentLogScreen from './src/screens/ParentLogScreen';
 import AssistantLogScreen from './src/screens/AssistantLogScreen';
-import TrafficLogScreen from './src/screens/trafficscreen';
 import TrafficScreen from './src/screens/trafficscreen';
-import AdminScreen from './src/screens/AdminScreen'; // Adjust path as needed
+import AdminScreen from './src/screens/AdminScreen';
 
-
-
-
-
-
-
-
-// Define the type for navigation
 export type RootStackParamList = {
   Login: undefined;
   HomeScreen: undefined;
   ParentScreen: undefined;
-
-
+  RouteTrackerScreen: undefined;
+  AssistantScreen: undefined;
+  ListScreen: undefined;
+  LogScreen: undefined;
+  ParentLogScreen: undefined;
+  AssistantLogScreen: undefined;
+  TrafficScreen: undefined;
+  AdminScreen: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -51,16 +48,6 @@ function App() {
           <Stack.Screen name="AssistantLogScreen" component={AssistantLogScreen} />
           <Stack.Screen name="TrafficScreen" component={TrafficScreen} />
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
-
-
-
-
-
-
-
-        
-
-
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

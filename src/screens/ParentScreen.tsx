@@ -15,24 +15,71 @@ import { useNavigation } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-native-maps";
 import LinearGradient from "react-native-linear-gradient";
 
+// Define Student interface (simplified for student_name only)
+interface Student {
+  student_name: string;
+}
+
 const ParentScreen = () => {
   const navigation = useNavigation();
-  const mapRef = useRef(null);
-  const [errorMsg, setErrorMsg] = useState(null);
+  const mapRef = useRef<MapView>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [parkingMarkers, setParkingMarkers] = useState([]);
-  const [travelTimes, setTravelTimes] = useState([]);
+  const [travelTimes, setTravelTimes] = useState<string[]>([]);
   const [showRouteInput, setShowRouteInput] = useState(false);
-  const [travelTimesByMode, setTravelTimesByMode] = useState(null);
+  const [travelTimesByMode, setTravelTimesByMode] = useState<any>(null);
+
+  // State for student data
+  const [student, setStudent] = useState<Student | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showStudentData, setShowStudentData] = useState(false); // Added missing state
 
   const defaultLocation = {
     latitude: 0.3476,
     longitude: 32.5825,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
+  };
+
+  // Fetch student data
+  const fetchStudent = async () => {
+    try {
+      console.log('Starting fetch from: http://192.168.216.163:8000/api/students/S002/');
+      const response = await fetch('http://192.168.216.163:8000/api/students/S002/', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Fetch response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText}`);
+      }
+
+      const data: Student = await response.json();
+      console.log('Parsed data:', JSON.stringify(data, null, 2));
+      setStudent(data);
+      setError(null);
+    } catch (err: any) {
+      console.error('Fetch Error Details:', {
+        name: err.name,
+        message: err.message,
+      });
+      setError(`Failed to fetch student data: ${err.message}`);
+      Alert.alert('Fetch Error', `Could not load student data: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -62,6 +109,7 @@ const ParentScreen = () => {
       }
     };
     requestLocationPermission();
+    fetchStudent(); // Fetch on mount
   }, []);
 
   const calculateRoute = async () => {
@@ -72,7 +120,7 @@ const ParentScreen = () => {
     // ... (rest of calculateRoute remains unchanged)
   };
 
-  const decodePolyline = (encoded) => {
+  const decodePolyline = (encoded: string) => {
     // ... (unchanged)
   };
 
@@ -92,7 +140,7 @@ const ParentScreen = () => {
     setTravelTimes([]);
     setTravelTimesByMode(null);
     setShowRouteInput(false);
-    mapRef.current.animateToRegion(defaultLocation);
+    mapRef.current?.animateToRegion(defaultLocation);
   };
 
   return (
@@ -146,7 +194,7 @@ const ParentScreen = () => {
         )}
       </MapView>
 
-      {/* RouteWise Button (Initially Visible) */}
+      {/* RouteWise Button */}
       {!showRouteInput && !travelTimesByMode && (
         <TouchableOpacity
           style={styles.routeWiseButton}
@@ -156,7 +204,7 @@ const ParentScreen = () => {
         </TouchableOpacity>
       )}
 
-      {/* Directions Input with Cancel Icon */}
+      {/* Directions Input */}
       {showRouteInput && !travelTimesByMode && (
         <View style={styles.inputContainer}>
           <TouchableOpacity
@@ -217,7 +265,6 @@ const ParentScreen = () => {
         </View>
       )}
 
-      {/* Travel Times Panel for Parking */}
       {travelTimes.length > 0 && (
         <ScrollView style={styles.timePanel}>
           <Text style={styles.timeTitle}>Estimated Travel Times</Text>
@@ -238,9 +285,33 @@ const ParentScreen = () => {
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Crash</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={() => {
+            setShowStudentData(!showStudentData);
+            if (!showStudentData && !student && !loading) fetchStudent(); // Refetch if no data
+          }}
+        >
+          <Text style={styles.buttonText}>Student</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Top-Right Route Tracker Button (Adjusted Position) */}
+      {/* Student Data Overlay */}
+      {showStudentData && (
+        <View style={styles.studentOverlay}>
+          {loading ? (
+            <Text style={styles.studentText}>Loading...</Text>
+          ) : error ? (
+            <Text style={styles.studentText}>Error: {error}</Text>
+          ) : student ? (
+            <Text style={styles.studentText}>Student Name: {student.student_name}</Text>
+          ) : (
+            <Text style={styles.studentText}>No student data available</Text>
+          )}
+        </View>
+      )}
+
+      {/* Route Tracker Button */}
       <TouchableOpacity
         style={[
           styles.topRightButton,
@@ -409,6 +480,25 @@ const styles = StyleSheet.create({
   calloutText: {
     fontSize: 12,
     color: "#333",
+  },
+  studentOverlay: {
+    position: "absolute",
+    top: 100,
+    left: 10,
+    right: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    padding: 15,
+    borderRadius: 10,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  studentText: {
+    fontSize: 14,
+    color: "#333",
+    marginVertical: 2,
   },
 });
 
