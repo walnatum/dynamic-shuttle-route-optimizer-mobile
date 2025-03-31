@@ -6,10 +6,10 @@ import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../../App'; 
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-type AssistantLogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AssistantLogScreen'>;
+type AdminLogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AssistantLogScreen'>;
 
 const AssistantLogScreen = () => {
-  const navigation = useNavigation<AssistantLogScreenNavigationProp>();
+  const navigation = useNavigation<AdminLogScreenNavigationProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -26,30 +26,10 @@ const AssistantLogScreen = () => {
     }
     console.log('Logging in with:', email, password);
     try {
-      navigation.navigate('AssistantScreen'); // Navigate to AssistantScreen
+      navigation.navigate('AdminScreen');
     } catch (error) {
       console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Assistant screen');
-    }
-  };
-
-  const goToParent = () => {
-    console.log("Navigating to ParentScreen...");
-    try {
-      navigation.navigate('ParentScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
-    }
-  };
-
-  const goToAssistant = () => {
-    console.log("Navigating to AssistantScreen...");
-    try {
-      navigation.navigate('AssistantScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Assistant screen');
+      Alert.alert('Navigation Error', 'Could not navigate to Admin screen');
     }
   };
 
@@ -73,7 +53,7 @@ const AssistantLogScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#4facfe', '#00f2fe']}
+      colors={['#1A2526', '#00A3FF']} // Dark blue gradient from previous code
       style={styles.container}
     >
       <View style={styles.overlay}>
@@ -83,12 +63,12 @@ const AssistantLogScreen = () => {
         </TouchableOpacity>
 
         {/* Header */}
-        <Text style={styles.title}>Assistant Login</Text>
-        <Text style={styles.subtitle}>Support Your Journey</Text>
+        <Text style={styles.title}>Admin Login</Text>
+        <Text style={styles.subtitle}>Manage the System</Text>
 
         {/* Icon or Logo (Placeholder) */}
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>🤖</Text>
+          <Text style={styles.icon}>👔</Text> {/* Changed to suit emoji */}
         </View>
 
         {/* Login Fields */}
@@ -142,18 +122,8 @@ const AssistantLogScreen = () => {
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>
 
-        {/* Role Buttons (As Parent, As Assistant) */}
-        {/* <View style={styles.roleButtonContainer}>
-          <TouchableOpacity style={[styles.roleButton, styles.parentButton]} onPress={goToParent}>
-            <Text style={styles.roleButtonText}>As Parent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.roleButton, styles.assistantButton]} onPress={goToAssistant}>
-            <Text style={styles.roleButtonText}>As Assistant</Text>
-          </TouchableOpacity>
-        </View> */}
-
         {/* Footer Text */}
-        <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
+        <Text style={styles.footerText}>System Administration Portal</Text>
       </View>
     </LinearGradient>
   );
@@ -242,7 +212,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   loginButton: {
-    backgroundColor: '#841584',
+    backgroundColor: '#0047AB', // Cobalt blue for admin login
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
@@ -255,39 +225,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
-  roleButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
-    marginTop: 10,
-  },
-  roleButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    width: '48%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  parentButton: {
-    backgroundColor: '#007AFF',
-  },
-  assistantButton: {
-    backgroundColor: '#FF9500',
-  },
   buttonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
-  },
-  roleButtonText: {
-    color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
   },
   footerText: {

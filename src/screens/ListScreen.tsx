@@ -82,7 +82,7 @@ const ListScreen = () => {
 
     try {
       console.log(`Fetching student with code: ${newStudentCode}`);
-      const fetchResponse = await fetch(`http://192.168.216.163:8000/api/students/${newStudentCode}/`, {
+      const fetchResponse = await fetch(`http://10.10.134.30:8000/api/students/${newStudentCode}/`, {
         method: "GET",
         headers: {
           "Accept": "application/json",
@@ -100,7 +100,7 @@ const ListScreen = () => {
       console.log("Fetched student:", studentData);
 
       // Update onboarded status on the backend
-      const updateResponse = await fetch(`http://192.168.216.163:8000/api/students/${newStudentCode}/`, {
+      const updateResponse = await fetch(`http://10.10.134.30:8000/api/students/${newStudentCode}/`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",
@@ -147,7 +147,7 @@ const ListScreen = () => {
 
     try {
       // Update onboarded status to false on the backend
-      const response = await fetch(`http://192.168.216.163:8000/api/students/${studentToRemove.student_code}/`, {
+      const response = await fetch(`http://10.10.134.30:8000/api/students/${studentToRemove.student_code}/`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",

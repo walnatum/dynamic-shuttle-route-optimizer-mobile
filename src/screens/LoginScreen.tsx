@@ -1,10 +1,9 @@
-
-import React, { useState, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import LinearGradient from 'react-native-linear-gradient';
-import { RootStackParamList } from '../../App'; 
+import { RootStackParamList } from '../../App';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -24,61 +23,34 @@ const LoginScreen = () => {
       navigation.navigate('LogScreen');
     } catch (error) {
       console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Home screen');
+      Alert.alert('Navigation Error', 'Could not navigate to LogScreen');
     }
   };
 
-  // const goToParent = () => {
-  //   console.log("Navigating to ParentScreen...");
-  //   try {
-  //     navigation.navigate('ParentScreen');
-  //   } catch (error) {
-  //     console.error('Navigation error:', error);
-  //     Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
-  //   }
-  // };
-
-  // const goToAssistant = () => {
-  //   console.log("Navigating to AssistantScreen...");
-  //   try {
-  //     navigation.navigate('AssistantScreen');
-  //   } catch (error) {
-  //     console.error('Navigation error:', error);
-  //     Alert.alert('Navigation Error', 'Could not navigate to Assistant screen');
-  //   }
-  // };
-
   return (
     <LinearGradient
-      colors={['#4facfe', '#00f2fe']}
+      colors={['#1A2526', '#00A3FF']} // Gradient from deep blue to blue
       style={styles.container}
     >
-      <View style={styles.overlay}>
-        {/* Welcome Header */}
-        <Text style={styles.title}>Welcome to RouteWise</Text>
-        <Text style={styles.subtitle}>Your Journey, Our Priority</Text>
 
-        {/* Icon or Logo (Placeholder) */}
-        <View style={styles.iconContainer}>
-          <Text style={styles.icon}>🗺️</Text>
-        </View>
-
-        {/* Navigation Buttons */}
-        <TouchableOpacity style={styles.button} onPress={goToHome}>
-          <Text style={styles.buttonText}>Login</Text>
-        </TouchableOpacity>
-
-        {/* <TouchableOpacity style={[styles.button, styles.parentButton]} onPress={goToParent}>
-          <Text style={styles.buttonText}>The Parent</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.button, styles.assistantButton]} onPress={goToAssistant}>
-          <Text style={styles.buttonText}>The Assistant</Text>
-        </TouchableOpacity> */}
-
-        {/* Footer Text */}
-        <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
+      {/* Central Graphic */}
+      <View style={styles.graphicContainer}>
+        <Image
+          source={require('../assets/Logo.png')} // Path to Logo.png
+          style={styles.graphic}
+        />
       </View>
+
+      {/* RouteWise Title */}
+      <Text style={styles.title}>RouteWise</Text>
+
+      {/* Slogan */}
+      <Text style={styles.slogan}>Find Your Way, Wisely</Text>
+
+      {/* Navigation Button */}
+      <TouchableOpacity style={styles.button} onPress={goToHome}>
+        <Text style={styles.buttonText}>RouteWise</Text>
+      </TouchableOpacity>
     </LinearGradient>
   );
 };
@@ -88,79 +60,59 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
-  overlay: {
-    flex: 1,
+  assistantButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: '#00A3FF',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+  },
+  assistantButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  graphicContainer: {
+    marginBottom: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
-    padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Slight overlay for better text readability
+  },
+  graphic: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
   },
   title: {
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: 'bold',
     color: '#fff',
     textAlign: 'center',
-    marginBottom: 10,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 5,
+    marginBottom: 10, // Reduced margin to make space for the slogan
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#fff',
+  slogan: {
+    fontSize: 18, // Smaller than the title
+    color: '#fff', // White text to match the theme
     textAlign: 'center',
-    marginBottom: 30,
-    fontStyle: 'italic',
-    opacity: 0.9,
-  },
-  iconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 50,
-    padding: 20,
-    marginBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  icon: {
-    fontSize: 50,
+    marginBottom: 30, // Space between slogan and button
+    fontStyle: 'italic', // Optional: italic for a stylistic touch
+    opacity: 0.9, // Slightly faded for contrast with the title
   },
   button: {
-    backgroundColor: '#841584',
+    backgroundColor: '#00A3FF',
     paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginVertical: 10,
-    width: '80%',
+    paddingHorizontal: 40,
+    borderRadius: 30,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  parentButton: {
-    backgroundColor: '#007AFF',
-  },
-  assistantButton: {
-    backgroundColor: '#FF9500',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  footerText: {
-    position: 'absolute',
-    bottom: 20,
-    fontSize: 14,
-    color: '#fff',
-    textAlign: 'center',
-    opacity: 0.7,
   },
 });
 

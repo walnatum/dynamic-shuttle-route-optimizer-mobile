@@ -26,16 +26,6 @@ const ParentLogScreen = () => {
     }
     console.log('Logging in with:', email, password);
     try {
-      navigation.navigate('ParentScreen'); // Navigate to ParentScreen
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
-    }
-  };
-
-  const goToParent = () => {
-    console.log("Navigating to ParentScreen...");
-    try {
       navigation.navigate('ParentScreen');
     } catch (error) {
       console.error('Navigation error:', error);
@@ -73,7 +63,7 @@ const ParentLogScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#4facfe', '#00f2fe']}
+      colors={['#1A2526', '#00A3FF']} // Dark blue gradient from previous code
       style={styles.container}
     >
       <View style={styles.overlay}>
@@ -82,9 +72,10 @@ const ParentLogScreen = () => {
           <Icon name="arrow-back" size={30} color="#fff" />
         </TouchableOpacity>
 
+
         {/* Header */}
         <Text style={styles.title}>Parent Login</Text>
-        <Text style={styles.subtitle}>Manage Your Child’s Journey</Text>
+        <Text style={styles.subtitle}>Manage Your Child's Journey</Text>
 
         {/* Icon or Logo (Placeholder) */}
         <View style={styles.iconContainer}>
@@ -142,16 +133,6 @@ const ParentLogScreen = () => {
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>
 
-        {/* Role Buttons (As Parent, As Assistant) */}
-        {/* <View style={styles.roleButtonContainer}>
-          <TouchableOpacity style={[styles.roleButton, styles.parentButton]} onPress={goToParent}>
-            <Text style={styles.roleButtonText}>As Parent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.roleButton, styles.assistantButton]} onPress={goToAssistant}>
-            <Text style={styles.roleButtonText}>As Assistant</Text>
-          </TouchableOpacity>
-        </View> */}
-
         {/* Footer Text */}
         <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
       </View>
@@ -178,6 +159,21 @@ const styles = StyleSheet.create({
     top: 40,
     left: 20,
     zIndex: 1,
+  },
+  topAssistantButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: '#007AFF', // Bright blue
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    zIndex: 20,
+  },
+  assistantButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 36,
@@ -242,7 +238,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   loginButton: {
-    backgroundColor: '#841584',
+    backgroundColor: '#0066CC', // Darker blue for login button
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
@@ -255,39 +251,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
-  roleButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
-    marginTop: 10,
-  },
-  roleButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    width: '48%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  parentButton: {
-    backgroundColor: '#007AFF',
-  },
-  assistantButton: {
-    backgroundColor: '#FF9500',
-  },
   buttonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
-  },
-  roleButtonText: {
-    color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
   },
   footerText: {

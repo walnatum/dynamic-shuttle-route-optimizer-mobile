@@ -1,9 +1,9 @@
 import React, { useState, useLayoutEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import LinearGradient from 'react-native-linear-gradient';
-import { RootStackParamList } from '../../App'; 
+import { RootStackParamList } from '../../App';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 type LogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Log'>;
@@ -44,9 +44,9 @@ const LogScreen = () => {
   };
 
   const goToAssistant = () => {
-    console.log("Navigating to AssistantLogScreen...");
+    console.log("Navigating to AssistantScreen...");
     try {
-      navigation.navigate('AssistantLogScreen');
+      navigation.navigate('AssistantScreen');
     } catch (error) {
       console.error('Navigation error:', error);
       Alert.alert('Navigation Error', 'Could not navigate to Assistant screen');
@@ -56,7 +56,7 @@ const LogScreen = () => {
   const goToAdmin = () => {
     console.log("Navigating to AdminScreen...");
     try {
-      navigation.navigate('AdminScreen');
+      navigation.navigate('AssistantLogScreen');
     } catch (error) {
       console.error('Navigation error:', error);
       Alert.alert('Navigation Error', 'Could not navigate to Admin screen');
@@ -83,7 +83,7 @@ const LogScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#4facfe', '#00f2fe']}
+      colors={['#1A2526', '#00A3FF']} // Gradient from deep blue to blue
       style={styles.container}
     >
       <View style={styles.overlay}>
@@ -92,13 +92,21 @@ const LogScreen = () => {
           <Icon name="arrow-back" size={30} color="#fff" />
         </TouchableOpacity>
 
+        {/* Assistant Button in Top-Right Corner */}
+        <TouchableOpacity style={styles.topAssistantButton} onPress={goToAssistant}>
+          <Text style={styles.assistantButtonText}>Assistant</Text>
+        </TouchableOpacity>
+
         {/* Header */}
-        <Text style={styles.title}>Login to RouteWise</Text>
+        <Text style={styles.title}>Driver Login</Text>
         <Text style={styles.subtitle}>Access Your Journey</Text>
 
-        {/* Icon or Logo (Placeholder) */}
+        {/* Logo */}
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>🔒</Text>
+          <Image
+            source={require('../assets/Logo.png')} // Path to Logo.png
+            style={styles.logo}
+          />
         </View>
 
         {/* Login Fields */}
@@ -152,17 +160,13 @@ const LogScreen = () => {
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>
 
-        {/* Role Buttons (As Parent, As Assistant, As Admin) */}
+        {/* Role Buttons (As Parent, As Admin) */}
         <View style={styles.roleButtonContainer}>
           <TouchableOpacity style={[styles.roleButton, styles.parentButton]} onPress={goToParent}>
             <Text style={styles.roleButtonText}>As Parent</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.roleButton, styles.assistantButton]} onPress={goToAssistant}>
-            <Text style={styles.roleButtonText}>As Assistant</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.roleButton, styles.assistantButton]} onPress={goToAdmin}>
+          <TouchableOpacity style={[styles.roleButton, styles.adminButton]} onPress={goToAdmin}>
             <Text style={styles.roleButtonText}>As Admin</Text>
           </TouchableOpacity>
         </View>
@@ -190,9 +194,24 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 40,
-    left: 20,
-    zIndex: 1,
+    top: 20,
+    left: 15,
+    zIndex: 20,
+  },
+  topAssistantButton: {
+    position: 'absolute',
+    top: 20,
+    right: 15,
+    backgroundColor: '#007AFF', // Bright blue
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    zIndex: 20,
+  },
+  assistantButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 36,
@@ -213,18 +232,14 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   iconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 50,
-    padding: 20,
     marginBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  icon: {
-    fontSize: 50,
+  logo: {
+    width: 100,
+    height: 100,
+    resizeMode: 'contain',
   },
   inputContainer: {
     width: '80%',
@@ -255,9 +270,10 @@ const styles = StyleSheet.create({
   },
   refreshIcon: {
     padding: 10,
+    zIndex: 10,
   },
   loginButton: {
-    backgroundColor: '#841584',
+    backgroundColor: '#0066CC', // Darker blue for login button
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
@@ -277,7 +293,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   roleButton: {
-    backgroundColor: '#007AFF',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 20,
@@ -290,10 +305,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   parentButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Bright blue
   },
-  assistantButton: {
-    backgroundColor: '#FF9500',
+  adminButton: {
+    backgroundColor: '#0047AB', // Different shade of blue (cobalt)
   },
   buttonText: {
     color: '#fff',
