@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-gesture-handler';
 
 import LoginScreen from './src/screens/LoginScreen';
-import HomeScreen from './src/screens/HomeScreen';
+// import HomeScreen from './src/screens/HomeScreen';
 import ParentScreen from './src/screens/ParentScreen';
 import RouteTrackerScreen from './src/screens/RouteTrackerScreen';
 import AssistantScreen from './src/screens/AssistantScreen';
@@ -15,6 +15,7 @@ import ParentLogScreen from './src/screens/ParentLogScreen';
 import AssistantLogScreen from './src/screens/AssistantLogScreen';
 import TrafficScreen from './src/screens/trafficscreen';
 import AdminScreen from './src/screens/AdminScreen';
+import HomeScreen from './src/screens/HomeScreen'
 
 export type RootStackParamList = {
   Login: undefined;
