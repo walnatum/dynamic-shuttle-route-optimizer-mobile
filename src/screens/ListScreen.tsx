@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+import Config from "react-native-config";
 
 interface Student {
   id: string;
@@ -82,7 +83,7 @@ const ListScreen = () => {
 
     try {
       console.log(`Fetching student with code: ${newStudentCode}`);
-      const fetchResponse = await fetch(`http://10.10.134.30:8000/api/students/${newStudentCode}/`, {
+      const fetchResponse = await fetch(`${Config.API_BASE_URL}/api/students/${newStudentCode}/`, {
         method: "GET",
         headers: {
           "Accept": "application/json",
@@ -100,7 +101,7 @@ const ListScreen = () => {
       console.log("Fetched student:", studentData);
 
       // Update onboarded status on the backend
-      const updateResponse = await fetch(`http://10.10.134.30:8000/api/students/${newStudentCode}/`, {
+      const updateResponse = await fetch(`${Config.API_BASE_URL}/api/students/${newStudentCode}/`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",
@@ -147,7 +148,7 @@ const ListScreen = () => {
 
     try {
       // Update onboarded status to false on the backend
-      const response = await fetch(`http://10.10.134.30:8000/api/students/${studentToRemove.student_code}/`, {
+      const response = await fetch(`${Config.API_BASE_URL}/api/students/${studentToRemove.student_code}/`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",
