@@ -20,6 +20,7 @@ interface Student {
   school: string;
   onboarded: boolean;
   student_code: string;
+  offboarded_at?: string | null;
 }
 
 type RootStackParamList = {
@@ -125,6 +126,7 @@ const ListScreen = () => {
         school: updatedStudentData.school_name,
         onboarded: updatedStudentData.onboarded,
         student_code: updatedStudentData.student_code,
+        offboarded_at: updatedStudentData.offboarded_at,
       };
 
       // Check if student already exists
@@ -147,14 +149,17 @@ const ListScreen = () => {
     if (!studentToRemove) return;
 
     try {
-      // Update onboarded status to false on the backend
+      const offboardTime = new Date().toISOString();
       const response = await fetch(`${Config.API_BASE_URL}/api/students/${studentToRemove.student_code}/`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ onboarded: false }),
+        body: JSON.stringify({ 
+          onboarded: false,
+          offboarded_at: offboardTime,
+        }),
       });
   
       if (!response.ok) {
@@ -172,7 +177,7 @@ const ListScreen = () => {
 
       setLeftStudents((prevLeftStudents) => [
         ...prevLeftStudents,
-        { id, name, school: studentToRemove.school, onboarded: false, student_code: studentToRemove.student_code },
+        { id, name, school: studentToRemove.school, onboarded: false, student_code: studentToRemove.student_code,offboarded_at: offboardTime, },
       ]);
     } catch (error: any) {
       console.error("Error offboarding student:", error.message);
@@ -238,7 +243,7 @@ const ListScreen = () => {
                 <View style={styles.studentItem}>
                   <Text style={styles.studentInitial}>{item.name.charAt(0).toUpperCase()}</Text>
                   <Text style={styles.studentName}>{item.name}</Text>
-                  <Text style={styles.statusText}>Left</Text>
+                  <Text style={styles.statusText}>Left at {item.offboarded_at ? new Date(item.offboarded_at).toLocaleTimeString() : "N/A"}</Text>
                 </View>
               )}
               keyExtractor={(item) => item.id}

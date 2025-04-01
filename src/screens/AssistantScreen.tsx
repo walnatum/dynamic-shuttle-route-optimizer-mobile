@@ -62,7 +62,7 @@ const AssistantScreen = () => {
   // Handle enter action
   const handleEnter = () => {
     if (!assistantNameId || !code) {
-      Alert.alert("Error", "Please enter both Assistant Name/Id and Code.");
+      Alert.alert("Error", "Please enter both Assistant Name and Code.");
       return;
     }
     // Navigate to AssistantScreen2 with the entered data
@@ -92,7 +92,7 @@ const AssistantScreen = () => {
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
-            placeholder="Assistant Name/Id"
+            placeholder="Assistant Name"
             value={assistantNameId}
             onChangeText={setAssistantNameId}
             placeholderTextColor="#666"
