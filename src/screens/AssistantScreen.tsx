@@ -10,14 +10,12 @@ import {
   TextInput,
 } from "react-native";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import MapView, { PROVIDER_GOOGLE, MapViewProps } from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+import Config from "react-native-config";
 
 type RootStackParamList = {
-  ListScreen: {
-    assistantNameId?: string;
-    code?: string;
-  };
-  AssistantScreen: undefined; 
+  ListScreen: { assistantNameId?: string; code?: string };
+  AssistantScreen: undefined;
 };
 
 const AssistantScreen = () => {
@@ -28,7 +26,6 @@ const AssistantScreen = () => {
   const [assistantNameId, setAssistantNameId] = useState<string>("");
   const [code, setCode] = useState<string>("");
 
-  // Default location (Kampala, Uganda)
   const defaultLocation = {
     latitude: 0.3476,
     longitude: 32.5825,
@@ -36,7 +33,6 @@ const AssistantScreen = () => {
     longitudeDelta: 0.05,
   };
 
-  // Request location permission
   useEffect(() => {
     const requestLocationPermission = async () => {
       try {
@@ -51,13 +47,9 @@ const AssistantScreen = () => {
               buttonPositive: "OK",
             }
           );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            setPermissionGranted(true);
-          } else {
-            setErrorMsg("Location permission denied");
-          }
+          setPermissionGranted(granted === PermissionsAndroid.RESULTS.GRANTED);
         } else {
-          setPermissionGranted(true); 
+          setPermissionGranted(true);
         }
       } catch (err) {
         setErrorMsg("Error requesting location permission");
@@ -66,13 +58,36 @@ const AssistantScreen = () => {
     requestLocationPermission();
   }, []);
 
-
-  const handleEnter = () => {
+  const handleEnter = async () => {
     if (!assistantNameId.trim() || !code.trim()) {
       Alert.alert("Error", "Please enter both Assistant Name and Code.");
       return;
     }
-    navigation.navigate("ListScreen", { assistantNameId, code });
+
+    // Verify code with backend
+    try {
+      const response = await fetch(`${Config.API_BASE_URL}/api/verify-driver-code/`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ driver_code: code }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Verification error:", response.status, errorText);
+        throw new Error("Invalid driver code");
+      }
+
+      const driverData = await response.json();
+      console.log("Verified driver:", driverData);
+      navigation.navigate("ListScreen", { assistantNameId, code });
+    } catch (error) {
+      console.error("Error verifying code:", error);
+      Alert.alert("Error", "Invalid code. Please try again.");
+    }
   };
 
   const resetInput = (field: "assistant" | "code") => {
@@ -82,15 +97,12 @@ const AssistantScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={defaultLocation}
       />
-
-      {/* Input Section */}
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
           <TextInput
@@ -100,11 +112,11 @@ const AssistantScreen = () => {
             onChangeText={setAssistantNameId}
             placeholderTextColor="#666"
           />
-          {assistantNameId ? (
+          {assistantNameId && (
             <TouchableOpacity style={styles.clearButton} onPress={() => resetInput("assistant")}>
               <Text style={styles.clearButtonText}>X</Text>
             </TouchableOpacity>
-          ) : null}
+          )}
         </View>
         <View style={styles.inputWrapper}>
           <TextInput
@@ -114,18 +126,16 @@ const AssistantScreen = () => {
             onChangeText={setCode}
             placeholderTextColor="#666"
           />
-          {code ? (
+          {code && (
             <TouchableOpacity style={styles.clearButton} onPress={() => resetInput("code")}>
               <Text style={styles.clearButtonText}>X</Text>
             </TouchableOpacity>
-          ) : null}
+          )}
         </View>
         <TouchableOpacity style={styles.enterButton} onPress={handleEnter}>
           <Text style={styles.enterButtonText}>Enter</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Floating Buttons */}
       <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Weather</Text>
