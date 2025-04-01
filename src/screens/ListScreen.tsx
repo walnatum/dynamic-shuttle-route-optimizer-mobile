@@ -25,7 +25,7 @@ interface Student {
 
 type RootStackParamList = {
   ListScreen: {
-    assistantNameId?: string;
+    assistantName?: string;
     code?: string;
   };
 };
@@ -35,7 +35,7 @@ type ListScreenRouteProp = RouteProp<RootStackParamList, 'ListScreen'>;
 const ListScreen = () => {
   //const navigation = useNavigation();
   const route = useRoute<ListScreenRouteProp>();
-  const { assistantNameId, code } = route.params || {};
+  const { assistantName, code } = route.params || {};
   const [students, setStudents] = useState<Student[]>([]);
   const [leftStudents, setLeftStudents] = useState<Student[]>([]);
   const [newStudentCode, setNewStudentCode] = useState("");
@@ -194,7 +194,7 @@ const ListScreen = () => {
       />
 
       <View style={styles.infoContainer}>
-        <Text style={styles.info}>Assistant Name/Id: {assistantNameId || "N/A"}</Text>
+        <Text style={styles.info}>Assistant Name: {assistantName || "N/A"}</Text>
         <Text style={styles.info}>Code: {code || "N/A"}</Text>
       </View>
 

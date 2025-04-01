@@ -9,19 +9,26 @@ import {
   Platform,
   TextInput,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
-import LinearGradient from "react-native-linear-gradient";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
+import MapView, { PROVIDER_GOOGLE, MapViewProps } from "react-native-maps";
+
+type RootStackParamList = {
+  ListScreen: {
+    assistantNameId?: string;
+    code?: string;
+  };
+  AssistantScreen: undefined; 
+};
 
 const AssistantScreen = () => {
-  const navigation = useNavigation();
-  const mapRef = useRef(null);
-  const [errorMsg, setErrorMsg] = useState(null);
-  const [permissionGranted, setPermissionGranted] = useState(false);
-  const [assistantNameId, setAssistantNameId] = useState("");
-  const [code, setCode] = useState("");
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const mapRef = useRef<MapView>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+  const [assistantNameId, setAssistantNameId] = useState<string>("");
+  const [code, setCode] = useState<string>("");
 
-  // Default location (Kampala, Uganda - can be adjusted)
+  // Default location (Kampala, Uganda)
   const defaultLocation = {
     latitude: 0.3476,
     longitude: 32.5825,
@@ -50,7 +57,7 @@ const AssistantScreen = () => {
             setErrorMsg("Location permission denied");
           }
         } else {
-          setPermissionGranted(true);
+          setPermissionGranted(true); 
         }
       } catch (err) {
         setErrorMsg("Error requesting location permission");
@@ -59,18 +66,16 @@ const AssistantScreen = () => {
     requestLocationPermission();
   }, []);
 
-  // Handle enter action
+
   const handleEnter = () => {
-    if (!assistantNameId || !code) {
+    if (!assistantNameId.trim() || !code.trim()) {
       Alert.alert("Error", "Please enter both Assistant Name and Code.");
       return;
     }
-    // Navigate to AssistantScreen2 with the entered data
     navigation.navigate("ListScreen", { assistantNameId, code });
   };
 
-  // Reset inputs
-  const resetInput = (field) => {
+  const resetInput = (field: "assistant" | "code") => {
     if (field === "assistant") setAssistantNameId("");
     if (field === "code") setCode("");
   };
@@ -83,9 +88,7 @@ const AssistantScreen = () => {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={defaultLocation}
-      >
-        {/* Add markers or data based on assistant input if needed */}
-      </MapView>
+      />
 
       {/* Input Section */}
       <View style={styles.inputContainer}>
@@ -122,7 +125,7 @@ const AssistantScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Floating Buttons (Bottom) */}
+      {/* Floating Buttons */}
       <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Weather</Text>
@@ -134,7 +137,6 @@ const AssistantScreen = () => {
           <Text style={styles.buttonText}>Crash</Text>
         </TouchableOpacity>
       </View>
-
     </View>
   );
 };
@@ -142,29 +144,28 @@ const AssistantScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f5f5f5",
   },
   map: {
     flex: 1,
   },
   inputContainer: {
     position: "absolute",
-    top: 10,
-    left: 10,
-    right: 10,
-    padding: 10,
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 15,
     backgroundColor: "#fff",
     borderRadius: 8,
-    marginBottom: 10,
     paddingHorizontal: 10,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
   input: {
     flex: 1,
@@ -176,22 +177,14 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   clearButtonText: {
-    color: "#666",
-    fontWeight: "bold",
     fontSize: 16,
+    color: "#666",
   },
   enterButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#007bff",
     paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+    borderRadius: 8,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-    marginTop: 10,
   },
   enterButtonText: {
     color: "#fff",
@@ -207,47 +200,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
   },
   floatingButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    backgroundColor: "#007bff",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
     elevation: 5,
   },
   buttonText: {
     color: "white",
     fontWeight: "bold",
-  },
-  bottomNavContainer: {
-    position: "absolute",
-    bottom: 80,
-    left: 10,
-    right: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    padding: 10,
-    borderRadius: 10,
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  bottomNavTitle: {
     fontSize: 14,
-    color: "#333",
-    marginBottom: 5,
-  },
-  bottomNavButtons: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-  },
-  navButton: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  navButtonText: {
-    fontSize: 14,
-    color: "#007AFF",
   },
 });
 
