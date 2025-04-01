@@ -112,20 +112,204 @@ const HomeScreen = () => {
   };
 
   const calculateRoute = async () => {
-    // ... (unchanged, but typed correctly)
+    if (!start || !end) {
+      Alert.alert("Error", "Please enter both start and end locations.");
+      return;
+    }
+
+    if (end === "Close Parking (Multiple Locations in Kampala)") {
+      showParkingLocations();
+      return;
+    }
+
+    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+    const modes = ["driving", "walking", "bicycling", "transit"];
+    let timesByMode = {};
+    let points = [];
+
+    // First, try geocoding the start and end points to ensure they are valid
+    let startCoords, endCoords;
+    try {
+      const startGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(start)}&key=${apiKey}`;
+      const startResponse = await fetch(startGeocodeUrl);
+      const startData = await startResponse.json();
+      if (startData.status !== "OK" || !startData.results[0]) {
+        Alert.alert("Error", "Invalid starting location. Please check the address and try again.");
+        return;
+      }
+      startCoords = startData.results[0].geometry.location;
+
+      const endGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(end)}&key=${apiKey}`;
+      const endResponse = await fetch(endGeocodeUrl);
+      const endData = await endResponse.json();
+      if (endData.status !== "OK" || !endData.results[0]) {
+        Alert.alert("Error", "Invalid destination. Please check the address and try again.");
+        return;
+      }
+      endCoords = endData.results[0].geometry.location;
+    } catch (error) {
+      Alert.alert("Error", "Failed to geocode locations. Please check your internet connection and try again.");
+      return;
+    }
+
+    // Now try to fetch the driving route
+    const drivingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoords.lat},${startCoords.lng}&destination=${endCoords.lat},${endCoords.lng}&key=${apiKey}&mode=driving`;
+
+    try {
+      const response = await fetch(drivingUrl);
+      const data = await response.json();
+      if (data.status === "OK") {
+        points = decodePolyline(data.routes[0].overview_polyline.points);
+        setRouteCoordinates(points);
+        setParkingMarkers([]);
+        setTravelTimes([data.routes[0].legs[0].duration.text]);
+        mapRef.current.fitToCoordinates(points, {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        });
+        timesByMode["driving"] = data.routes[0].legs[0].duration.text;
+      } else {
+        Alert.alert("Error", `Could not find a driving route: ${data.status}. Try a different start or end location.`);
+        return;
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to fetch driving route. Please check your internet connection and try again.");
+      return;
+    }
+
+    // Calculate times for other modes
+    for (const mode of modes) {
+      if (mode === "driving") continue; // Already handled
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoords.lat},${startCoords.lng}&destination=${endCoords.lat},${endCoords.lng}&key=${apiKey}&mode=${mode}`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status === "OK") {
+          timesByMode[mode] = data.routes[0].legs[0].duration.text;
+        } else {
+          timesByMode[mode] = "N/A";
+        }
+      } catch (error) {
+        timesByMode[mode] = "Error";
+      }
+    }
+
+    setTravelTimesByMode(timesByMode);
   };
 
-  const decodePolyline = (encoded: string): { latitude: number; longitude: number }[] => {
-    // ... (unchanged, but return type added)
-    return [];
-  };
+  const decodePolyline = (encoded) => {
+    let points = [];
+    let index = 0,
+      len = encoded.length;
+    let lat = 0,
+      lng = 0;
 
+    while (index < len) {
+      let b,
+        shift = 0,
+        result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlat = (result & 1) != 0 ? ~(result >> 1) : result >> 1;
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlng = (result & 1) != 0 ? ~(result >> 1) : result >> 1;
+      lng += dlng;
+
+      points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+    }
+    return points;
+  };
+  
+
+  // Show parking locations with routes (still using driving for parking)
   const showParkingLocations = async () => {
-    // ... (unchanged, but typed correctly)
+    if (!start) {
+      Alert.alert("Error", "Please enter a starting location.");
+      return;
+    }
+
+    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+    let newTravelTimes = [];
+    let allCoordinates = [];
+
+    setParkingMarkers(parkingLocations);
+
+    for (const location of parkingLocations) {
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
+        start
+      )}&destination=${location.latitude},${location.longitude}&key=${apiKey}&mode=driving`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status === "OK") {
+          const points = decodePolyline(data.routes[0].overview_polyline.points);
+          allCoordinates = [...allCoordinates, ...points];
+          newTravelTimes.push(
+            `${location.name}: ${data.routes[0].legs[0].duration.text}`
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching parking route:", error);
+      }
+    }
+
+    setRouteCoordinates(allCoordinates);
+    setTravelTimes(newTravelTimes);
+    mapRef.current.fitToCoordinates(allCoordinates, {
+      edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+    });
   };
 
+  // Use current location as starting point
   const useCurrentLocation = () => {
-    // ... (unchanged, but typed correctly)
+    if (!permissionGranted) {
+      Alert.alert("Error", "Location permission not granted.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg`
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "OK") {
+              setStart(data.results[0].formatted_address);
+              mapRef.current.animateToRegion({
+                latitude,
+                longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              });
+            } else {
+              Alert.alert("Error", "Geocoding failed: " + data.status);
+            }
+          })
+          .catch((error) => {
+            console.error("Geocoding error:", error);
+            Alert.alert("Error", "Could not geocode location.");
+          });
+      },
+      (error) => {
+        console.error("Geolocation error:", error.message);
+        Alert.alert("Error", `Could not get current location: ${error.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
   };
 
   const resetMap = () => {
