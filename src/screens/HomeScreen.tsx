@@ -10,7 +10,6 @@ import {
   Platform,
   TextInput,
   ScrollView,
-  Image,
   Animated,
   PanResponder,
   Dimensions,
@@ -20,15 +19,10 @@ import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-nativ
 import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import Config from "react-native-config";
+import Geolocation from '@react-native-community/geolocation';
+// import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 
-// Define navigation stack
-type RootStackParamList = {
-  HomeScreen: undefined;
-  Test: undefined;
-  TrafficScreen: undefined;
-  AssistantScreen: undefined;
-  ListScreen: { assistantNameId?: string; code?: string };
-};
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -52,8 +46,40 @@ const HomeScreen = () => {
   const [selectedTime, setSelectedTime] = useState<"morning" | "afternoon" | "evening" | null>(null);
   const [hideInputs, setHideInputs] = useState<boolean>(false);
   const screenHeight = Dimensions.get("window").height;
-  const [panelHeight] = useState(new Animated.Value(100)); // Initial height of pull-up panel
-  const maxPanelHeight = screenHeight * 0.75; // Increased to 75% of screen height
+  const [panelHeight] = useState(new Animated.Value(100));
+  const maxPanelHeight = screenHeight * 0.75;
+  const [currentLegIndex, setCurrentLegIndex] = useState<number>(0);
+  const [showPhotoOverlay, setShowPhotoOverlay] = useState<boolean>(false);
+  const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [startMarker, setStartMarker] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const locationOptions: GeoOptions = {
+    enableHighAccuracy: true,  // Use GPS and other sensors
+    timeout: 20000,           // 20 second timeout
+    maximumAge: 10000         // Accept cached locations up to 10 seconds old
+  };
+
+  const checkGpsStatus = async () => {
+    if (Platform.OS === 'android') {
+      const enabled = await PROVIDER_GOOGLE.isGpsEnabled();
+      if (!enabled) {
+        Alert.alert(
+          "GPS Disabled",
+          "Please enable GPS for better location accuracy",
+          [
+            { text: "Cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() }
+          ]
+        );
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const openPhotoOverlay = () => {
+    setShowPhotoOverlay(true);
+  };
 
   const defaultLocation = {
     latitude: 0.3476,
@@ -75,7 +101,7 @@ const HomeScreen = () => {
       { name: "Kololo Airstrip", latitude: 0.3278, longitude: 32.5978, description: "Open area often used for events." },
       { name: "Garden City", latitude: 0.3168, longitude: 32.5912, description: "Modern mall with a cinema." },
       { name: "Bugolobi Market", latitude: 0.3068, longitude: 32.6208, description: "Local market with fresh foods." },
-      { name: "Muyenga Hill", latitude: 0.2936, longitude: 32.6113, description: "Residential area with scenic."   },
+      { name: "Muyenga Hill", latitude: 0.2936, longitude: 32.6113, description: "Residential area with scenic views." },
     ],
     evening: [
       { name: "Acacia Mall", latitude: 0.3375, longitude: 32.5869, description: "Upscale mall with dining options." },
@@ -86,38 +112,39 @@ const HomeScreen = () => {
     ],
   };
 
+
   useEffect(() => {
     const requestLocationPermission = async () => {
       try {
-        if (Platform.OS === "android") {
+        if (Platform.OS === 'android') {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
             {
-              title: "Location Permission",
-              message: "This app needs access to your location.",
-              buttonNeutral: "Ask Me Later",
-              buttonNegative: "Cancel",
-              buttonPositive: "OK",
-            }
+              title: 'Location Permission',
+              message: 'This app needs access to your location.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            },
           );
           setPermissionGranted(granted === PermissionsAndroid.RESULTS.GRANTED);
         } else {
-          setPermissionGranted(true);
+          // For iOS, request permission when needed
+          const status = await Geolocation.requestAuthorization('whenInUse');
+          setPermissionGranted(status === 'granted');
         }
       } catch (err) {
-        setErrorMsg("Error requesting location permission");
+        Alert.alert("Error", "Failed to request location permission.");
       }
     };
     requestLocationPermission();
   }, []);
 
   const goToTest = () => {
-    console.log("Navigating to TestScreen...");
     navigation.navigate("Test");
   };
 
   const goToTraffic = () => {
-    console.log("Navigating to TrafficScreen...");
     navigation.navigate("TrafficScreen");
   };
 
@@ -130,7 +157,7 @@ const HomeScreen = () => {
     if (end === "Close Parking (Multiple Locations in Kampala)") {
       showParkingLocations();
       return;
-    }
+    } 
 
     const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
     const modes = ["driving", "walking", "bicycling", "transit"];
@@ -139,7 +166,7 @@ const HomeScreen = () => {
 
     let startCoords, endCoords;
     try {
-      const startGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(start)}&key=${apiKey}®ion=ug`;
+      const startGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(start)}&key=${apiKey}&region=ug`;
       const startResponse = await fetch(startGeocodeUrl);
       const startData = await startResponse.json();
       if (startData.status !== "OK" || !startData.results[0]) {
@@ -147,8 +174,13 @@ const HomeScreen = () => {
         return;
       }
       startCoords = startData.results[0].geometry.location;
+          // Set the start marker
+      setStartMarker({
+        latitude: startCoords.lat,
+        longitude: startCoords.lng,
+      });
 
-      const endGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(end)}&key=${apiKey}®ion=ug`;
+      const endGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(end)}&key=${apiKey}&region=ug`;
       const endResponse = await fetch(endGeocodeUrl);
       const endData = await endResponse.json();
       if (endData.status !== "OK" || !endData.results[0]) {
@@ -156,6 +188,12 @@ const HomeScreen = () => {
         return;
       }
       endCoords = endData.results[0].geometry.location;
+      // Store the destination coordinates for the marker
+      setDestinationMarker({
+        latitude: endCoords.lat,
+        longitude: endCoords.lng,
+      });
+
     } catch (error) {
       Alert.alert("Error", "Failed to geocode locations.");
       return;
@@ -275,15 +313,71 @@ const HomeScreen = () => {
     });
   };
 
+  // const useCurrentLocation = () => {
+  //   if (!permissionGranted) {
+  //     Alert.alert("Error", "Location permission not granted.");
+  //     return;
+  //   }
+
+  //   navigator.geolocation.getCurrentPosition(
+  //     (position) => {
+  //       const { latitude, longitude } = position.coords;
+  //       fetch(
+  //         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg`
+  //       )
+  //         .then((response) => response.json())
+  //         .then((data) => {
+  //           if (data.status === "OK") {
+  //             setStart(data.results[0].formatted_address);
+  //             mapRef.current.animateToRegion({
+  //               latitude,
+  //               longitude,
+  //               latitudeDelta: 0.05,
+  //               longitudeDelta: 0.05,
+  //             });
+  //           } else {
+  //             Alert.alert("Error", "Geocoding failed: " + data.status);
+  //           }
+  //         })
+  //         .catch((error) => {
+  //           console.error("Geocoding error:", error);
+  //           Alert.alert("Error", "Could not geocode location.");
+  //         });
+  //     },
+  //     (error) => {
+  //       console.error("Geolocation error:", error.message);
+  //       Alert.alert("Error", `Could not get current location: ${error.message}`);
+  //     },
+  //     { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+  //   );
+  // };
+
   const useCurrentLocation = () => {
     if (!permissionGranted) {
-      Alert.alert("Error", "Location permission not granted.");
+      // Alert.alert("Error", "Location permission not granted.");
+      // return;
+      Alert.alert(
+        "Permission Required",
+        "Please enable location permissions in settings.",
+        [
+          { text: "Cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ]
+      );
       return;
     }
-
-    navigator.geolocation.getCurrentPosition(
+      // Show loading indicator
+      Alert.alert("Getting Location", "Please wait while we fetch your location...");
+  
+    Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        // Set the start marker
+        setStartMarker({
+          latitude,
+          longitude,
+        });
+  
         fetch(
           `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg`
         )
@@ -291,7 +385,7 @@ const HomeScreen = () => {
           .then((data) => {
             if (data.status === "OK") {
               setStart(data.results[0].formatted_address);
-              mapRef.current.animateToRegion({
+              mapRef.current?.animateToRegion({
                 latitude,
                 longitude,
                 latitudeDelta: 0.05,
@@ -306,11 +400,20 @@ const HomeScreen = () => {
             Alert.alert("Error", "Could not geocode location.");
           });
       },
+      // (error) => {
+      //   console.error("Geolocation error:", error.message);
+      //   Alert.alert("Error", `Could not get current location: ${error.message}`);
+      // },
       (error) => {
-        console.error("Geolocation error:", error.message);
-        Alert.alert("Error", `Could not get current location: ${error.message}`);
+        let errorMessage = "Could not get current location";
+        if (error.code === error.TIMEOUT) {
+          errorMessage = "Location request timed out. Please check your GPS/Wi-Fi and try again.";
+        } else if (error.code === error.PERMISSION_DENIED) {
+          errorMessage = "Location permission denied. Please enable in settings.";
+        }
+        Alert.alert("Error", errorMessage);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
@@ -327,6 +430,9 @@ const HomeScreen = () => {
     setTimeMarkers([]);
     setSelectedTime(null);
     setHideInputs(false);
+    setCurrentLegIndex(0);
+    setDestinationMarker(null);
+    setStartMarker(null);
     mapRef.current?.animateToRegion(defaultLocation);
   };
 
@@ -351,28 +457,62 @@ const HomeScreen = () => {
       return;
     }
 
-    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
-    const origin = `${locations[0].latitude},${locations[0].longitude}`; // First location
-    const destination = `${locations[1].latitude},${locations[1].longitude}`; // Second location
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+    setShowRouteInput(false);
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.status === "OK") {
-        const points = decodePolyline(data.routes[0].overview_polyline.points);
-        setRouteCoordinates(points);
-        setTravelTimes([`${locations[0].name} to ${locations[1].name}: ${data.routes[0].legs[0].duration.text}`]);
-        mapRef.current?.fitToCoordinates(points, {
-          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        });
-      } else {
-        Alert.alert("Error", `Could not find a route: ${data.status}`);
+    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+    let allTravelTimes: string[] = [];
+
+    for (let i = 0; i < locations.length - 1; i++) {
+      const origin = `${locations[i].latitude},${locations[i].longitude}`;
+      const destination = `${locations[i + 1].latitude},${locations[i + 1].longitude}`;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status === "OK") {
+          const duration = data.routes[0].legs[0].duration.text;
+          allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     ${duration}`);
+        } else {
+          allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     N/A`);
+        }
+      } catch (error) {
+        console.error("Error fetching route for time-based locations:", error);
+        allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     Error`);
       }
-    } catch (error) {
-      console.error("Error fetching route for time-based locations:", error);
-      Alert.alert("Error", "Failed to fetch route.");
     }
+
+    setTravelTimes(allTravelTimes);
+
+    const displayLeg = async (legIndex: number) => {
+      if (legIndex >= locations.length - 1) return;
+
+      const origin = `${locations[legIndex].latitude},${locations[legIndex].longitude}`;
+      const destination = `${locations[legIndex + 1].latitude},${locations[legIndex + 1].longitude}`;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status === "OK") {
+          const points = decodePolyline(data.routes[0].overview_polyline.points);
+          setRouteCoordinates(points);
+          mapRef.current?.fitToCoordinates(points, {
+            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+          });
+
+          setTimeout(() => {
+            setCurrentLegIndex(legIndex + 1);
+            displayLeg(legIndex + 1);
+          }, 3000);
+        }
+      } catch (error) {
+        console.error("Error fetching route for leg:", error);
+      }
+    };
+
+    setCurrentLegIndex(0);
+    displayLeg(0);
   };
 
   const searchPlaces = async () => {
@@ -382,15 +522,20 @@ const HomeScreen = () => {
     }
 
     const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchQuery)}&key=${apiKey}®ion=ug`;
+    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${apiKey}&region=ug`;
 
     try {
       const response = await fetch(url);
       const data = await response.json();
       if (data.status === "OK" && data.results.length > 0) {
         const { lat, lng } = data.results[0].geometry.location;
-        const newMarker = { name: searchQuery, latitude: lat, longitude: lng };
+        const newMarker = { 
+          name: data.results[0].name, 
+          latitude: lat, 
+          longitude: lng 
+        };
         setSearchMarkers([newMarker]);
+        setSearchQuery("");
         mapRef.current?.animateToRegion({
           latitude: lat,
           longitude: lng,
@@ -398,15 +543,12 @@ const HomeScreen = () => {
           longitudeDelta: 0.05,
         });
       } else {
-        Alert.alert("Error", "No results found for the search query. Try a different place, e.g., 'Acacia Mall, Kampala'.");
+        Alert.alert("Error", "No results found. Try a more specific query like 'Acacia Mall, Kampala'");
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to search for place. Check your connection.");
+      Alert.alert("Error", "Failed to search. Please check your internet connection.");
+      console.error("Search error:", error);
     }
-  };
-
-  const handleSearchSubmit = () => {
-    searchPlaces();
   };
 
   const openSearchOverlay = () => {
@@ -419,7 +561,7 @@ const HomeScreen = () => {
     setGeneratedCode(newCode);
 
     try {
-      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // Truncated for brevity
+      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
       const response = await fetch(`${Config.API_BASE_URL}/api/drivers/`, {
         method: "POST",
         headers: {
@@ -490,27 +632,47 @@ const HomeScreen = () => {
             </Callout>
           </Marker>
         ))}
+
+        {startMarker && (
+            <Marker
+              coordinate={startMarker}
+              title="Start"
+              pinColor="green" // Different color for start marker
+            />
+          )}
+        {destinationMarker && (
+                <Marker
+                  coordinate={destinationMarker}
+                  title={end}
+                  pinColor="red" // You can change the color to distinguish it from other markers
+                />
+              )}
       </MapView>
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
           placeholder="Search for a place..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearchSubmit}
+          onSubmitEditing={searchPlaces}
           placeholderTextColor="#888"
+          returnKeyType="search"
         />
-        <TouchableOpacity style={styles.searchImageContainer} onPress={openSearchOverlay}>
-          <Image
-            source={{ uri: "https://via.placeholder.com/30" }}
-            style={styles.searchImage}
-          />
+        <TouchableOpacity 
+          style={styles.searchImageContainer} 
+          onPress={searchPlaces}
+        >
+          <Icon name="search" size={30} color="#666" />
         </TouchableOpacity>
+        <TouchableOpacity 
+        style={styles.photoIconContainer}
+        onPress={openPhotoOverlay}
+      >
+        <Icon name="photo-camera" size={30} color="#666" />
+      </TouchableOpacity>
       </View>
 
-      {/* Assistant Button */}
       <TouchableOpacity
         style={styles.assistantButton}
         onPress={() => setShowAssistantOverlay(true)}
@@ -518,19 +680,27 @@ const HomeScreen = () => {
         <Text style={styles.buttonText}>Assistant</Text>
       </TouchableOpacity>
 
-      {/* RouteWise Button */}
       {!showRouteInput && !travelTimesByMode && (
         <TouchableOpacity style={styles.routeWiseButton} onPress={() => setShowRouteInput(true)}>
           <Text style={styles.buttonText}>RouteWise</Text>
         </TouchableOpacity>
       )}
 
-      {/* RouteWise Overlay */}
       {showRouteInput && !travelTimesByMode && !hideInputs && (
         <View style={styles.routeWiseOverlay}>
-          <TouchableOpacity style={styles.cancelIcon} onPress={() => setShowRouteInput(false)}>
+          {/* <TouchableOpacity 
+            style={styles.cancelIcon} 
+            onPress={() => setShowRouteInput(false)}
+          >
             <Icon name="cancel" size={30} color="#FF2D55" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
+
+          <TouchableOpacity
+            style={styles.cancelIcon}  // ✅ Use proper style reference
+            onPress={() => setShowRouteInput(false)}  // ✅ Fixed arrow function
+        >
+            <Icon name="cancel" size={30} color="#FF2D55" />  // ✅ Correct icon name
+        </TouchableOpacity>
           <View style={styles.inputContainer}>
             <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.inputWrapper}>
               <TextInput
@@ -539,6 +709,7 @@ const HomeScreen = () => {
                 value={start}
                 onChangeText={setStart}
                 placeholderTextColor="#ffffff"
+                returnKeyType="next"
               />
             </LinearGradient>
             <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.inputWrapper}>
@@ -548,35 +719,64 @@ const HomeScreen = () => {
                 value={end}
                 onChangeText={setEnd}
                 placeholderTextColor="#ffffff"
+                returnKeyType="go"
+                onSubmitEditing={calculateRoute}
               />
             </LinearGradient>
+            
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={styles.functionButton}
+                onPress={calculateRoute}
+              >
+                <Text style={styles.buttonText}>Get Directions</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.functionButton}
+                onPress={useCurrentLocation}
+              >
+                <Text style={styles.buttonText}>My Location</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.functionButton}
+                onPress={resetMap}
+              >
+                <Text style={styles.buttonText}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.timeButtonRow}>
-              <TouchableOpacity style={styles.timeButton} onPress={() => showTimeBasedLocations("morning")}>
+              <TouchableOpacity 
+                style={styles.timeButton} 
+                onPress={() => showTimeBasedLocations("morning")}
+              >
                 <Text style={styles.buttonText}>Morning</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.timeButton} onPress={() => showTimeBasedLocations("afternoon")}>
+              <TouchableOpacity 
+                style={styles.timeButton} 
+                onPress={() => showTimeBasedLocations("afternoon")}
+              >
                 <Text style={styles.buttonText}>Afternoon</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.timeButton} onPress={() => showTimeBasedLocations("evening")}>
+              <TouchableOpacity 
+                style={styles.timeButton} 
+                onPress={() => showTimeBasedLocations("evening")}
+              >
                 <Text style={styles.buttonText}>Evening</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.navigateButton} onPress={navigateToTimeLocations}>
+            <TouchableOpacity 
+              style={styles.navigateButton} 
+              onPress={navigateToTimeLocations}
+            >
               <Text style={styles.buttonText}>Navigate Time Locations</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* Travel Times Overlay */}
       <View style={styles.bottomContainer}>
-        {showRouteInput && !travelTimesByMode && !travelTimes.length && (
-          <View style={styles.buttonRow}>
-            <Button title="Get Directions" onPress={calculateRoute} />
-            <Button title="Use My Location" onPress={useCurrentLocation} />
-            <Button title="Reset" onPress={resetMap} />
-          </View>
-        )}
         {travelTimesByMode && (
           <View style={styles.travelTimesPanel}>
             <Text style={styles.timeTitle}>Estimated Travel Times</Text>
@@ -602,16 +802,11 @@ const HomeScreen = () => {
         )}
       </View>
 
-      {/* Pull-Up Dialog Box */}
       <Animated.View style={[styles.panel, { height: panelHeight }]} {...panResponder.panHandlers}>
         <View style={styles.panelHandle} />
         <ScrollView style={styles.panelContent}>
           <Text style={styles.panelTitle}>Explore Kampala</Text>
           <Text style={styles.panelText}>Discover popular spots and events!</Text>
-          <Image
-            source={{ uri: "https://via.placeholder.com/300x150" }}
-            style={styles.panelImage}
-          />
           <Text style={styles.panelText}>Visit markets, malls, and more.</Text>
           <View style={styles.panelSpacer} />
         </ScrollView>
@@ -630,6 +825,28 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+
+      {showPhotoOverlay && (
+      <View style={styles.overlay}>
+        <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.photoOverlayContent}>
+          <Text style={styles.overlayTitle}>Photo Options</Text>
+          <Text style={styles.overlayText}>Take a photo or upload from gallery</Text>
+          <TouchableOpacity style={styles.overlayButton}>
+            <Text style={styles.buttonText}>Take Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.overlayButton}>
+            <Text style={styles.buttonText}>Upload from Gallery</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowPhotoOverlay(false)}
+          >
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
+    )}
 
       {showAssistantOverlay && (
         <View style={styles.overlay}>
@@ -679,6 +896,7 @@ const HomeScreen = () => {
 };
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
   },
@@ -709,10 +927,24 @@ const styles = StyleSheet.create({
   searchImageContainer: {
     padding: 5,
   },
-  searchImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  photoOverlayContent: {
+    width: "75%",
+    height: "50%",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  overlayButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    elevation: 5,
   },
   assistantButton: {
     position: "absolute",
@@ -746,8 +978,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-start",
+    paddingTop: 100,
     alignItems: "center",
   },
   inputContainer: {
@@ -797,9 +1030,21 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     width: "100%",
+    marginVertical: 10,
     flexWrap: "wrap",
+  },
+  functionButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    margin: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    elevation: 5,
   },
   travelTimesPanel: {
     width: "100%",
@@ -854,7 +1099,7 @@ const styles = StyleSheet.create({
   },
   panelContent: {
     padding: 15,
-    paddingBottom: 80, // Added padding to avoid overlap with floating buttons
+    paddingBottom: 80,
   },
   panelTitle: {
     fontSize: 18,
@@ -866,14 +1111,8 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 10,
   },
-  panelImage: {
-    width: "100%",
-    height: 150,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
   panelSpacer: {
-    height: 20, // Additional spacer to ensure content is visible
+    height: 20,
   },
   floatingButtons: {
     flexDirection: "row",
