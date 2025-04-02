@@ -558,10 +558,11 @@ const HomeScreen = () => {
   const generateCode = async () => {
     setSyncStatus("In Sync");
     const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+    console.log("Generated Code:", newCode);
     setGeneratedCode(newCode);
-
+  
     try {
-      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNTA1NzcyLCJpYXQiOjE3NDM1MDIxNzIsImp0aSI6IjQ1NDhjNTY3YTJiZTQwY2RhMWM0M2Q4OWRjYmFiMWQyIiwidXNlcl9pZCI6Ijc5OTI4M2I0LTJmMmItNDYzOC05Y2E4LTI4ZTMzNmFhZmM0ZSJ9.CoG9z2Rz2h8IFo2Tam5ZplQGkzjtbf5nEFU__FKsPqA"; // Replace with AsyncStorage.getItem("access_token") after login
       const response = await fetch(`${Config.API_BASE_URL}/api/drivers/`, {
         method: "POST",
         headers: {
@@ -571,22 +572,27 @@ const HomeScreen = () => {
         },
         body: JSON.stringify({
           driver_code: newCode,
-          user: "204f86a8-cd25-4314-b5b9-2868dcd8b2f9",
-          school: "ab12c1be-959e-4d59-bbb3-39b5134ada5b",
+          user: "204f86a8-cd25-4314-b5b9-2868dcd8b2f9", // Replace with a valid User UUID
+          school: "ab12c1be-959e-4d59-bbb3-39b5134ada5b", // Replace with a valid School UUID
         }),
       });
-
+  
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error storing driver code:", response.status, errorText);
         throw new Error("Failed to store driver code");
       }
-
+  
+      const driverData = await response.json();
+      console.log("Driver created with code:", driverData);
       setSyncStatus("Synced");
     } catch (error) {
       console.error("Error generating code:", error);
       setSyncStatus("UnSync");
-      Alert.alert("Error", "Failed to store driver code.");
+      Alert.alert("Error", "Failed to store driver code. Check network or backend.");
     }
   };
+
 
   const panResponder = React.useRef(
     PanResponder.create({
