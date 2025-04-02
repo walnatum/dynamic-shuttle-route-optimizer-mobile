@@ -16,6 +16,7 @@ import AssistantLogScreen from './src/screens/AssistantLogScreen';
 import TrafficScreen from './src/screens/trafficscreen';
 import AdminScreen from './src/screens/AdminScreen';
 import HomeScreen from './src/screens/HomeScreen'
+import RouteScreen from './src/screens/RouteScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -29,6 +30,9 @@ export type RootStackParamList = {
   AssistantLogScreen: undefined;
   TrafficScreen: undefined;
   AdminScreen: undefined;
+  RouteScreen: undefined;
+
+  
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -49,6 +53,8 @@ function App() {
           <Stack.Screen name="AssistantLogScreen" component={AssistantLogScreen} />
           <Stack.Screen name="TrafficScreen" component={TrafficScreen} />
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
+          <Stack.Screen name="RouteScreen" component={RouteScreen} />
+
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
