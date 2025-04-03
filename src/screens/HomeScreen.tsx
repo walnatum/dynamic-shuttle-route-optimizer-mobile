@@ -23,6 +23,11 @@ import Geolocation from '@react-native-community/geolocation';
 // import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
 import { Linking } from 'react-native';
 
+export type RootStackParamList = {
+  HomeScreen: undefined;
+  AssistantScreen: undefined;
+  ParentTrackingScreen: { driverCode: string };
+};
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -42,6 +47,7 @@ const HomeScreen = () => {
   const [showSearchOverlay, setShowSearchOverlay] = useState<boolean>(false);
   const [generatedCode, setGeneratedCode] = useState<string>("");
   const [syncStatus, setSyncStatus] = useState<"UnSync" | "In Sync" | "Synced">("UnSync");
+  const [shuttleRegNumber, setShuttleRegNumber] = useState<string>("");
   const [timeMarkers, setTimeMarkers] = useState<{ name: string; latitude: number; longitude: number; description: string }[]>([]);
   const [selectedTime, setSelectedTime] = useState<"morning" | "afternoon" | "evening" | null>(null);
   const [hideInputs, setHideInputs] = useState<boolean>(false);
@@ -562,34 +568,82 @@ const HomeScreen = () => {
     setGeneratedCode(newCode);
   
     try {
-      //const token = "eyJhbGciOiJIUzI1NiIsI
-      const response = await fetch(`${Config.API_BASE_URL}/api/drivers/`, {
+      // Create driver
+      const driverResponse = await fetch(`${Config.API_BASE_URL}/api/drivers/`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
-          //"Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           driver_code: newCode,
-          // user: "204f86a8-cd25-4314-b5b9-2868dcd8b2f9", 
-          // school: "ab12c1be-959e-4d59-bbb3-39b5134ada5b", 
         }),
       });
   
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error storing driver code:", response.status, errorText);
+      if (!driverResponse.ok) {
+        const errorText = await driverResponse.text();
+        console.error("Error storing driver code:", driverResponse.status, errorText);
         throw new Error("Failed to store driver code");
       }
   
-      const driverData = await response.json();
+      const driverData = await driverResponse.json();
       console.log("Driver created with code:", driverData);
+
+      // Assign shuttle (hardcoded for now; could be a dropdown)
+      const shuttleResponse = await fetch(`${Config.API_BASE_URL}/api/assign-shuttle/`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          driver_code: newCode,
+          reg_number: "ABC123", // Replace with actual shuttle selection logic
+        }),
+      });
+      
+      if (!shuttleResponse.ok) {
+        const errorText = await shuttleResponse.text();
+        console.error("Error assigning shuttle:", errorText);
+        throw new Error("Failed to assign shuttle");
+      }
+
+      const shuttleData = await shuttleResponse.json();
+      console.log("Shuttle assigned:", shuttleData);
+      setShuttleRegNumber(shuttleData.shuttle.reg_number);
       setSyncStatus("Synced");
+
+      // Start location updates
+      if (permissionGranted) {
+        const updateLocation = () => {
+          Geolocation.getCurrentPosition(
+            (position) => {
+              const { latitude, longitude } = position.coords;
+              fetch(`${Config.API_BASE_URL}/api/driver/update-location/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ latitude, longitude }),
+              })
+                .then((res) => res.json())
+                .then((data) => console.log("Location updated:", data))
+                .catch((err) => console.error("Location update error:", err));
+            },
+            (error) => console.error("Geolocation error:", error.message),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+          );
+        };
+
+        updateLocation(); // Initial update
+        const interval = setInterval(updateLocation, 30000); // Every 30s
+        return () => clearInterval(interval); // Cleanup on unmount
+      } else {
+        Alert.alert("Error", "Location permission not granted for tracking.");
+      }
+
     } catch (error) {
       console.error("Error generating code:", error);
       setSyncStatus("UnSync");
-      Alert.alert("Error", "Failed to store driver code. Check network or backend.");
+      Alert.alert("Error", "Failed to setup driver or shuttle.");
     }
   };
 
@@ -871,6 +925,9 @@ const HomeScreen = () => {
             {generatedCode && (
               <View style={styles.codeContainer}>
                 <Text style={styles.generatedCodeText}>{generatedCode}</Text>
+                {shuttleRegNumber && (
+                  <Text style={styles.generatedCodeText}>Shuttle: {shuttleRegNumber}</Text>
+                )}
               </View>
             )}
             <TouchableOpacity

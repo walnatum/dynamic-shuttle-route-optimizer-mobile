@@ -1,22 +1,22 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import 'react-native-gesture-handler';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createStackNavigator } from "@react-navigation/stack";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import "react-native-gesture-handler";
 
-import LoginScreen from './src/screens/LoginScreen';
-// import HomeScreen from './src/screens/HomeScreen';
-import ParentScreen from './src/screens/ParentScreen';
-import RouteTrackerScreen from './src/screens/RouteTrackerScreen';
-import AssistantScreen from './src/screens/AssistantScreen';
-import ListScreen from './src/screens/ListScreen';
-import LogScreen from './src/screens/LogScreen';
-import ParentLogScreen from './src/screens/ParentLogScreen';
-import AssistantLogScreen from './src/screens/AssistantLogScreen';
-import TrafficScreen from './src/screens/trafficscreen';
-import AdminScreen from './src/screens/AdminScreen';
-import HomeScreen from './src/screens/HomeScreen'
-import RouteScreen from './src/screens/RouteScreen';
+import LoginScreen from "./src/screens/LoginScreen";
+import HomeScreen from "./src/screens/HomeScreen";
+import ParentScreen from "./src/screens/ParentScreen";
+import RouteTrackerScreen from "./src/screens/RouteTrackerScreen";
+import AssistantScreen from "./src/screens/AssistantScreen";
+import ListScreen from "./src/screens/ListScreen";
+import LogScreen from "./src/screens/LogScreen";
+import ParentLogScreen from "./src/screens/ParentLogScreen";
+import AssistantLogScreen from "./src/screens/AssistantLogScreen";
+import TrafficScreen from "./src/screens/Trafficscreen";
+import AdminScreen from "./src/screens/AdminScreen";
+import RouteScreen from "./src/screens/RouteScreen";
+import ParentTrackingScreen from "./src/screens/ParentTrackingScreen";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -24,15 +24,14 @@ export type RootStackParamList = {
   ParentScreen: undefined;
   RouteTrackerScreen: undefined;
   AssistantScreen: undefined;
-  ListScreen: undefined;
+  ListScreen: { assistantNameId?: string; code?: string };
   LogScreen: undefined;
   ParentLogScreen: undefined;
   AssistantLogScreen: undefined;
   TrafficScreen: undefined;
   AdminScreen: undefined;
   RouteScreen: undefined;
-
-  
+  ParentTrackingScreen: { driverCode: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -54,7 +53,7 @@ function App() {
           <Stack.Screen name="TrafficScreen" component={TrafficScreen} />
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
           <Stack.Screen name="RouteScreen" component={RouteScreen} />
-
+          <Stack.Screen name="ParentTrackingScreen" component={ParentTrackingScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

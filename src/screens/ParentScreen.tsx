@@ -46,41 +46,7 @@ const ParentScreen = () => {
     longitudeDelta: 0.05,
   };
 
-  // Fetch student data
-  const fetchStudent = async () => {
-    try {
-      console.log('Starting fetch from: http://192.168.216.163:8000/api/students/S002/');
-      const response = await fetch('http://192.168.216.163:8000/api/students/S002/', {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Fetch response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText}`);
-      }
-
-      const data: Student = await response.json();
-      console.log('Parsed data:', JSON.stringify(data, null, 2));
-      setStudent(data);
-      setError(null);
-    } catch (err: any) {
-      console.error('Fetch Error Details:', {
-        name: err.name,
-        message: err.message,
-      });
-      setError(`Failed to fetch student data: ${err.message}`);
-      Alert.alert('Fetch Error', `Could not load student data: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   useEffect(() => {
     const requestLocationPermission = async () => {
@@ -108,8 +74,7 @@ const ParentScreen = () => {
         setErrorMsg("Error requesting location permission");
       }
     };
-    requestLocationPermission();
-    fetchStudent(); // Fetch on mount
+    requestLocationPermission(); 
   }, []);
 
   const calculateRoute = async () => {
@@ -285,31 +250,7 @@ const ParentScreen = () => {
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Crash</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.floatingButton}
-          onPress={() => {
-            setShowStudentData(!showStudentData);
-            if (!showStudentData && !student && !loading) fetchStudent(); // Refetch if no data
-          }}
-        >
-          <Text style={styles.buttonText}>Student</Text>
-        </TouchableOpacity>
       </View>
-
-      {/* Student Data Overlay */}
-      {showStudentData && (
-        <View style={styles.studentOverlay}>
-          {loading ? (
-            <Text style={styles.studentText}>Loading...</Text>
-          ) : error ? (
-            <Text style={styles.studentText}>Error: {error}</Text>
-          ) : student ? (
-            <Text style={styles.studentText}>Student Name: {student.student_name}</Text>
-          ) : (
-            <Text style={styles.studentText}>No student data available</Text>
-          )}
-        </View>
-      )}
 
       {/* Route Tracker Button */}
       <TouchableOpacity
