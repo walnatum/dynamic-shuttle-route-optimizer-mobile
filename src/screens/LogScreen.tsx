@@ -63,6 +63,16 @@ const LogScreen = () => {
     }
   };
 
+  const goToRoute = () => {
+    console.log("Navigating to AdminScreen...");
+    try {
+      navigation.navigate('RouteScreen');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Could not navigate to Admin screen');
+    }
+  };
+
   const goBack = () => {
     console.log("Navigating back...");
     try {
@@ -169,7 +179,14 @@ const LogScreen = () => {
           <TouchableOpacity style={[styles.roleButton, styles.adminButton]} onPress={goToAdmin}>
             <Text style={styles.roleButtonText}>As Admin</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.roleButton, styles.adminButton]} onPress={goToRoute}>
+            <Text style={styles.roleButtonText}>As Route</Text>
+          </TouchableOpacity>
+
         </View>
+
+        
 
         {/* Footer Text */}
         <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
