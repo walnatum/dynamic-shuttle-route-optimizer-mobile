@@ -77,16 +77,15 @@ const AssistantScreen = () => {
         body: JSON.stringify({ driver_code: code }),
       });
 
-      const responseText = await response.text();
-      console.log("Response status: " , response.status);
-      console.log("Response body: " , responseText);
+      const driverData = await response.json(); // Read body once as JSON
+      console.log("Response status:", response.status);
+      console.log("Response body:", driverData);
 
       if (!response.ok) {
-        console.error("Verification error:", response.status, responseText);
+        console.error("Verification error:", response.status, driverData);
         throw new Error("Invalid driver code");
       }
 
-      const driverData = await response.json();
       console.log("Verified driver:", driverData);
       navigation.navigate("ListScreen", { assistantNameId, code });
     } catch (error) {

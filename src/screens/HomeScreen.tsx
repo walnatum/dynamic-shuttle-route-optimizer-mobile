@@ -572,8 +572,8 @@ const HomeScreen = () => {
         },
         body: JSON.stringify({
           driver_code: newCode,
-          user: "204f86a8-cd25-4314-b5b9-2868dcd8b2f9", 
-          school: "ab12c1be-959e-4d59-bbb3-39b5134ada5b", 
+          // user: "204f86a8-cd25-4314-b5b9-2868dcd8b2f9", 
+          // school: "ab12c1be-959e-4d59-bbb3-39b5134ada5b", 
         }),
       });
   
