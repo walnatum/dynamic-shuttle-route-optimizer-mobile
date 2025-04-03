@@ -562,7 +562,7 @@ const HomeScreen = () => {
     setGeneratedCode(newCode);
   
     try {
-      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzNTA1NzcyLCJpYXQiOjE3NDM1MDIxNzIsImp0aSI6IjQ1NDhjNTY3YTJiZTQwY2RhMWM0M2Q4OWRjYmFiMWQyIiwidXNlcl9pZCI6Ijc5OTI4M2I0LTJmMmItNDYzOC05Y2E4LTI4ZTMzNmFhZmM0ZSJ9.CoG9z2Rz2h8IFo2Tam5ZplQGkzjtbf5nEFU__FKsPqA"; // Replace with AsyncStorage.getItem("access_token") after login
+      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQ0MDM0MzQzLCJpYXQiOjE3NDM2MDIzNDMsImp0aSI6ImM3MDYzNjI0MTNkOTQ3MzFhYTBkNTBiOTJkMTdhYTcwIiwidXNlcl9pZCI6IjIwNGY4NmE4LWNkMjUtNDMxNC1iNWI5LTI4NjhkY2Q4YjJmOSJ9.H-sOgA4D87oOLrrZOQDvB0GC1EqiLhD7J5iWHrQChDs";
       const response = await fetch(`${Config.API_BASE_URL}/api/drivers/`, {
         method: "POST",
         headers: {

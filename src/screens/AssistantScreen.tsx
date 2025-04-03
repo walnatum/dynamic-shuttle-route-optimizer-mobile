@@ -66,6 +66,8 @@ const AssistantScreen = () => {
 
     // Verify code with backend
     try {
+      console.log("Verifying code:", code);
+      console.log("URL:", `${Config.API_BASE_URL}/api/verify-driver-code/`);
       const response = await fetch(`${Config.API_BASE_URL}/api/verify-driver-code/`, {
         method: "POST",
         headers: {
@@ -75,9 +77,12 @@ const AssistantScreen = () => {
         body: JSON.stringify({ driver_code: code }),
       });
 
+      const responseText = await response.text();
+      console.log("Response status: " , response.status);
+      console.log("Response body: " , responseText);
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Verification error:", response.status, errorText);
+        console.error("Verification error:", response.status, responseText);
         throw new Error("Invalid driver code");
       }
 
