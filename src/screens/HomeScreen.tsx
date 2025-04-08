@@ -169,7 +169,7 @@ const HomeScreen = () => {
     if (end === "Close Parking (Multiple Locations in Kampala)") {
       showParkingLocations();
       return;
-    } 
+    }
 
     const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
     const modes = ["driving", "walking", "bicycling", "transit"];
@@ -178,36 +178,36 @@ const HomeScreen = () => {
 
     let startCoords, endCoords;
     try {
-      const startGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(start)}&key=${apiKey}&region=ug`;
-      const startResponse = await fetch(startGeocodeUrl);
+      // Use Google Places API Text Search instead of Geocoding for more precise results
+      const startPlacesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(start)}&key=${apiKey}&region=ug`;
+      const startResponse = await fetch(startPlacesUrl);
       const startData = await startResponse.json();
       if (startData.status !== "OK" || !startData.results[0]) {
-        Alert.alert("Error", "Invalid starting location.");
+        Alert.alert("Error", "Invalid starting location. Try a more specific query like 'Acacia Mall, Kampala'");
         return;
       }
       startCoords = startData.results[0].geometry.location;
-          // Set the start marker
       setStartMarker({
         latitude: startCoords.lat,
         longitude: startCoords.lng,
       });
 
-      const endGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(end)}&key=${apiKey}&region=ug`;
-      const endResponse = await fetch(endGeocodeUrl);
+      const endPlacesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(end)}&key=${apiKey}&region=ug`;
+      const endResponse = await fetch(endPlacesUrl);
       const endData = await endResponse.json();
       if (endData.status !== "OK" || !endData.results[0]) {
-        Alert.alert("Error", "Invalid destination.");
+        Alert.alert("Error", "Invalid destination. Try a more specific query like 'Kampala Road'");
         return;
       }
       endCoords = endData.results[0].geometry.location;
-      // Store the destination coordinates for the marker
       setDestinationMarker({
         latitude: endCoords.lat,
         longitude: endCoords.lng,
       });
 
     } catch (error) {
-      Alert.alert("Error", "Failed to geocode locations.");
+      Alert.alert("Error", "Failed to find locations. Check your input or internet connection.");
+      console.error("Places API error:", error);
       return;
     }
 
@@ -250,7 +250,6 @@ const HomeScreen = () => {
     }
     setTravelTimesByMode(timesByMode);
   };
-
   const decodePolyline = (encoded) => {
     let points = [];
     let index = 0,
