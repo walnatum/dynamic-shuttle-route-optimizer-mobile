@@ -144,46 +144,77 @@ const ListScreen = () => {
   };
 
   // Off-board student from the shuttle
-  const removeStudent = async (id: string, name: string) => {
-    const studentToRemove = students.find((student) => student.id === id);
-    if (!studentToRemove) return;
+const removeStudent = async (id: string, name: string) => {
+  const studentToRemove = students.find((student) => student.id === id);
+  if (!studentToRemove) return;
 
-    try {
-      const offboardTime = new Date().toISOString();
-      const response = await fetch(`${Config.API_BASE_URL}/api/students/${studentToRemove.student_code}/`, {
-        method: "PATCH",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          onboarded: false,
-          offboarded_at: offboardTime,
-        }),
-      });
-  
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Offboard error:", response.status, errorText);
-        throw new Error(`Failed to offboard student. Status: ${response.status}`);
-      }
-  
-      const updatedStudentData = await response.json();
-      console.log("Offboarded student:", updatedStudentData);
+  try {
+    // Fetch the active ShuttleAssignment for this student
+    const assignmentsResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+    });
 
-      // Update local state
-      const updatedStudents = students.filter((student) => student.id !== id);
-      setStudents(updatedStudents);
-
-      setLeftStudents((prevLeftStudents) => [
-        ...prevLeftStudents,
-        { id, name, school: studentToRemove.school, onboarded: false, student_code: studentToRemove.student_code,offboarded_at: offboardTime, },
-      ]);
-    } catch (error: any) {
-      console.error("Error offboarding student:", error.message);
-      Alert.alert("Error", error.message || "Failed to offboard student.");
+    if (!assignmentsResponse.ok) {
+      const errorText = await assignmentsResponse.text();
+      console.error("Assignments fetch error:", assignmentsResponse.status, errorText);
+      throw new Error(`Failed to fetch assignments. Status: ${assignmentsResponse.status}`);
     }
-  };
+
+    const assignmentsData = await assignmentsResponse.json();
+    const activeAssignment = assignmentsData.find(
+      (assignment: any) => assignment.student.id === id && !assignment.offboarded_at
+    );
+
+    if (!activeAssignment) {
+      throw new Error("No active shuttle assignment found for this student.");
+    }
+
+    // Update the ShuttleAssignment to set offboarded_at
+    const offboardTime = new Date().toISOString();
+    const updateResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/${activeAssignment.id}/`, {
+      method: "PATCH",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        offboarded_at: offboardTime,
+      }),
+    });
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error("Offboard error:", updateResponse.status, errorText);
+      throw new Error(`Failed to offboard student. Status: ${updateResponse.status}`);
+    }
+
+    const updatedAssignmentData = await updateResponse.json();
+    console.log("Offboarded assignment:", updatedAssignmentData);
+
+    // Update local state
+    const updatedStudents = students.filter((student) => student.id !== id);
+    setStudents(updatedStudents);
+
+    setLeftStudents((prevLeftStudents) => [
+      ...prevLeftStudents,
+      {
+        id,
+        name,
+        school: studentToRemove.school,
+        onboarded: false,
+        student_code: studentToRemove.student_code,
+        offboarded_at: offboardTime,
+      },
+    ]);
+  } catch (error: any) {
+    console.error("Error offboarding student:", error.message);
+    Alert.alert("Error", error.message || "Failed to offboard student.");
+  }
+};
 
   return (
     <View style={styles.container}>

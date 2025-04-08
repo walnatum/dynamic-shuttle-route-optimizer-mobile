@@ -58,30 +58,31 @@ const HomeScreen = () => {
   const [showPhotoOverlay, setShowPhotoOverlay] = useState<boolean>(false);
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [startMarker, setStartMarker] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<string>("Checking...");
 
-  const locationOptions: GeoOptions = {
-    enableHighAccuracy: true,  // Use GPS and other sensors
-    timeout: 20000,           // 20 second timeout
-    maximumAge: 10000         // Accept cached locations up to 10 seconds old
-  };
+  // const locationOptions: GeoOptions = {
+  //   enableHighAccuracy: true,  // Use GPS and other sensors
+  //   timeout: 20000,           // 20 second timeout
+  //   maximumAge: 10000         // Accept cached locations up to 10 seconds old
+  // };
 
-  const checkGpsStatus = async () => {
-    if (Platform.OS === 'android') {
-      const enabled = await PROVIDER_GOOGLE.isGpsEnabled();
-      if (!enabled) {
-        Alert.alert(
-          "GPS Disabled",
-          "Please enable GPS for better location accuracy",
-          [
-            { text: "Cancel" },
-            { text: "Open Settings", onPress: () => Linking.openSettings() }
-          ]
-        );
-        return false;
-      }
-    }
-    return true;
-  };
+  // const checkGpsStatus = async () => {
+  //   if (Platform.OS === 'android') {
+  //     const enabled = await PROVIDER_GOOGLE.isGpsEnabled();
+  //     if (!enabled) {
+  //       Alert.alert(
+  //         "GPS Disabled",
+  //         "Please enable GPS for better location accuracy",
+  //         [
+  //           { text: "Cancel" },
+  //           { text: "Open Settings", onPress: () => Linking.openSettings() }
+  //         ]
+  //       );
+  //       return false;
+  //     }
+  //   }
+  //   return true;
+  // };
 
   const openPhotoOverlay = () => {
     setShowPhotoOverlay(true);
@@ -122,24 +123,29 @@ const HomeScreen = () => {
   useEffect(() => {
     const requestLocationPermission = async () => {
       try {
-        if (Platform.OS === 'android') {
+        if (Platform.OS === "android") {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
             {
-              title: 'Location Permission',
-              message: 'This app needs access to your location.',
-              buttonNeutral: 'Ask Me Later',
-              buttonNegative: 'Cancel',
-              buttonPositive: 'OK',
-            },
+              title: "Location Permission",
+              message: "This app needs access to your location for shuttle tracking.",
+              buttonNeutral: "Ask Me Later",
+              buttonNegative: "Cancel",
+              buttonPositive: "OK",
+            }
           );
-          setPermissionGranted(granted === PermissionsAndroid.RESULTS.GRANTED);
-        } else {
-          // For iOS, request permission when needed
-          const status = await Geolocation.requestAuthorization('whenInUse');
-          setPermissionGranted(status === 'granted');
+          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            setPermissionGranted(true);
+            setLocationStatus("Permission granted, checking location services...");
+          } else {
+            setPermissionGranted(false);
+            setLocationStatus("Permission denied");
+            Alert.alert("Permission Denied", "Please enable location permissions in Settings > Apps > Your App.");
+          }
         }
       } catch (err) {
+        console.error("Permission request error:", err);
+        setLocationStatus("Permission request failed");
         Alert.alert("Error", "Failed to request location permission.");
       }
     };
@@ -582,14 +588,13 @@ const HomeScreen = () => {
   
       if (!driverResponse.ok) {
         const errorText = await driverResponse.text();
-        console.error("Error storing driver code:", driverResponse.status, errorText);
-        throw new Error("Failed to store driver code");
+        throw new Error(`Failed to store driver code: ${errorText}`);
       }
   
       const driverData = await driverResponse.json();
       console.log("Driver created with code:", driverData);
-
-      // Assign shuttle (hardcoded for now; could be a dropdown)
+  
+      // Assign shuttle
       const shuttleResponse = await fetch(`${Config.API_BASE_URL}/api/assign-shuttle/`, {
         method: "POST",
         headers: {
@@ -598,48 +603,113 @@ const HomeScreen = () => {
         },
         body: JSON.stringify({
           driver_code: newCode,
-          reg_number: "ABC123", // Replace with actual shuttle selection logic
+          reg_number: "UAB 345H",
         }),
       });
-      
+  
       if (!shuttleResponse.ok) {
         const errorText = await shuttleResponse.text();
-        console.error("Error assigning shuttle:", errorText);
-        throw new Error("Failed to assign shuttle");
+        throw new Error(`Failed to assign shuttle: ${errorText}`);
       }
-
+  
       const shuttleData = await shuttleResponse.json();
       console.log("Shuttle assigned:", shuttleData);
       setShuttleRegNumber(shuttleData.shuttle.reg_number);
       setSyncStatus("Synced");
-
+  
       // Start location updates
-      if (permissionGranted) {
-        const updateLocation = () => {
-          Geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              fetch(`${Config.API_BASE_URL}/api/driver/update-location/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ latitude, longitude }),
-              })
-                .then((res) => res.json())
-                .then((data) => console.log("Location updated:", data))
-                .catch((err) => console.error("Location update error:", err));
-            },
-            (error) => console.error("Geolocation error:", error.message),
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-          );
-        };
-
-        updateLocation(); // Initial update
-        const interval = setInterval(updateLocation, 30000); // Every 30s
-        return () => clearInterval(interval); // Cleanup on unmount
-      } else {
-        Alert.alert("Error", "Location permission not granted for tracking.");
-      }
-
+      const updateLocation = (driverCode: string) => {
+        if (!driverCode) {
+          setLocationStatus("Error: Driver code not provided");
+          return;
+        }
+  
+        if (!permissionGranted) {
+          setLocationStatus("No permission, using mock location");
+          const mockLocation = { latitude: 0.3476, longitude: 32.5825, driver_code: driverCode };
+          fetch(`${Config.API_BASE_URL}/api/driver/update-location/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mockLocation),
+          })
+            .then((res) => {
+              if (!res.ok) {
+                return res.json().then((errorData) => {
+                  throw new Error(errorData.error || "Failed to update mock location");
+                });
+              }
+              return res.json();
+            })
+            .then((data) => {
+              console.log("Mock location updated:", data);
+              setLocationStatus("Mock location updated");
+            })
+            .catch((err) => {
+              console.error("Mock location update error:", err.message);
+              setLocationStatus(`Mock Update Error: ${err.message}`);
+            });
+          return;
+        }
+  
+        Geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            setLocationStatus(`Location: ${latitude}, ${longitude} (GPS)`);
+            sendLocationUpdate(latitude, longitude, driverCode);
+          },
+          (error) => {
+            console.error("GPS error:", error.message, "Code:", error.code);
+            setLocationStatus(`GPS Error: ${error.message}`);
+            if (error.code === 3) {
+              // Fallback to network location on timeout
+              setLocationStatus("GPS timed out, trying network...");
+              Geolocation.getCurrentPosition(
+                (position) => {
+                  const { latitude, longitude } = position.coords;
+                  setLocationStatus(`Location: ${latitude}, ${longitude} (Network)`);
+                  sendLocationUpdate(latitude, longitude, driverCode);
+                },
+                (error) => {
+                  console.error("Network error:", error.message, "Code:", error.code);
+                  setLocationStatus(`Network Error: ${error.message}`);
+                  Alert.alert(
+                    "Location Failed",
+                    "Couldn’t get location. Ensure GPS is enabled and you’re in an open area, or check Wi-Fi/mobile data."
+                  );
+                },
+                { enableHighAccuracy: false, timeout: 20000, maximumAge: 10000 }
+              );
+            } else {
+              Alert.alert("Location Error", `Code ${error.code}: ${error.message}`);
+            }
+          },
+          { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
+        );
+      };
+  
+      const sendLocationUpdate = async (latitude: number, longitude: number, driverCode: string) => {
+        try {
+          const res = await fetch(`${Config.API_BASE_URL}/api/driver/update-location/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ latitude, longitude, driver_code: driverCode }),
+          });
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Failed to update location");
+          }
+          const data = await res.json();
+          console.log("Location updated:", data);
+        } catch (err) {
+          console.error("Location update error:", err.message);
+          setLocationStatus(`Update Error: ${err.message}`);
+          Alert.alert("Location Update Failed", err.message);
+        }
+      };
+  
+      updateLocation(newCode); // Initial update
+      const interval = setInterval(() => updateLocation(newCode), 30000); // Every 30s
+      return () => clearInterval(interval);
     } catch (error) {
       console.error("Error generating code:", error);
       setSyncStatus("UnSync");
@@ -909,36 +979,35 @@ const HomeScreen = () => {
     )}
 
       {showAssistantOverlay && (
-        <View style={styles.overlay}>
-          <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.overlayContent}>
-            <View style={styles.syncContainer}>
-              <Text style={styles.syncLabel}>Sync:</Text>
-              <Text
-                style={[styles.syncStatus, syncStatus === "Synced" && { color: "#00ff00" }]}
-              >
-                {syncStatus}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.generateButton} onPress={generateCode}>
-              <Text style={styles.generateButtonText}>Generate</Text>
-            </TouchableOpacity>
-            {generatedCode && (
-              <View style={styles.codeContainer}>
-                <Text style={styles.generatedCodeText}>{generatedCode}</Text>
-                {shuttleRegNumber && (
-                  <Text style={styles.generatedCodeText}>Shuttle: {shuttleRegNumber}</Text>
-                )}
+              <View style={styles.overlay}>
+                <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.overlayContent}>
+                  <View style={styles.syncContainer}>
+                    <Text style={styles.syncLabel}>Sync:</Text>
+                    <Text style={[styles.syncStatus, syncStatus === "Synced" && { color: "#00ff00" }]}>
+                      {syncStatus}
+                    </Text>
+                  </View>
+                  <Text style={styles.syncLabel}>Location: {locationStatus}</Text> {/* Debug info */}
+                  <TouchableOpacity style={styles.generateButton} onPress={generateCode}>
+                    <Text style={styles.generateButtonText}>Generate</Text>
+                  </TouchableOpacity>
+                  {generatedCode && (
+                    <View style={styles.codeContainer}>
+                      <Text style={styles.generatedCodeText}>{generatedCode}</Text>
+                      {shuttleRegNumber && (
+                        <Text style={styles.generatedCodeText}>Shuttle: {shuttleRegNumber}</Text>
+                      )}
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setShowAssistantOverlay(false)}
+                  >
+                    <Text style={styles.closeButtonText}>Close</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
               </View>
-            )}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowAssistantOverlay(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
-      )}
+    )}
 
       {showSearchOverlay && (
         <View style={styles.searchOverlay}>

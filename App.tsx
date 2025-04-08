@@ -31,7 +31,6 @@ export type RootStackParamList = {
   TrafficScreen: undefined;
   AdminScreen: undefined;
   RouteScreen: undefined;
-  ParentTrackingScreen: { driverCode: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
