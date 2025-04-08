@@ -159,6 +159,9 @@ const HomeScreen = () => {
   const goToTraffic = () => {
     navigation.navigate("TrafficScreen");
   };
+  const goToWeather = () => {
+    navigation.navigate("WeatherScreen");
+  };
 
   const calculateRoute = async () => {
     if (!start || !end) {
@@ -940,7 +943,10 @@ const HomeScreen = () => {
           <View style={styles.panelSpacer} />
         </ScrollView>
         <View style={styles.floatingButtons}>
-          <TouchableOpacity style={styles.floatingButton}>
+          {/* <TouchableOpacity style={styles.floatingButton}>
+            <Text style={styles.buttonText}>Weather</Text>
+          </TouchableOpacity> */}
+          <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
             <Text style={styles.buttonText}>Weather</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
