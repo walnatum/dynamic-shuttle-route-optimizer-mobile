@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
+  StyleSheet,
   TextInput,
   FlatList,
   Modal,
@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import Config from "react-native-config";
+import { Picker } from "@react-native-picker/picker";
 
 // Types matching Django models/serializers
 type School = {
-  id: string; // UUID
+  id: string;
   school_name: string;
   school_address?: string;
   latitude?: number;
@@ -24,11 +25,27 @@ type School = {
   modified_at?: string;
 };
 
-// *** MODIFIED Shuttle Type ***
-// Reflecting that 'school' will be a nested object from the serializer
+type User = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+};
+
+type Parent = {
+  id: string;
+  user: User;
+  parent_name: string;
+  parent_phone: string;
+  parent_address: string;
+  created_at: string;
+  modified_at: string;
+};
+
 type Shuttle = {
   reg_number: string;
-  school: School; // Changed from string to School object
+  school: School;
   capacity: number;
   is_active: boolean;
   current_latitude?: number;
@@ -38,20 +55,36 @@ type Shuttle = {
   driver_code?: string | null;
 };
 
+type Student = {
+  id: string;
+  student_name: string;
+  student_code: string;
+  school_name: string;
+  school_id: string;
+  class_level: string;
+  parent_details: Parent | null;
+  shuttle: Shuttle | null;
+  onboarded: boolean;
+  offboarded_at: string | null;
+};
+
 const AdminScreen = () => {
-  console.log("AdminScreen rendered"); // Debug: Confirm component mounts
+  console.log("AdminScreen rendered");
 
   // Data states
   const [schools, setSchools] = useState<School[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [parents, setParents] = useState<Parent[]>([]);
   const [shuttles, setShuttles] = useState<Shuttle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // UI states
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentStep, setCurrentStep] = useState<"school" | "shuttle" | "edit_school" | "edit_shuttle">("school");
+  const [currentStep, setCurrentStep] = useState<"school" | "edit_school" | "student">("school");
   const [expandedSchoolId, setExpandedSchoolId] = useState<string | null>(null);
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null); // For shuttle creation
+  const [expandedClassLevel, setExpandedClassLevel] = useState<string | null>(null);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
 
   // Form states
   const [schoolForm, setSchoolForm] = useState({
@@ -61,13 +94,28 @@ const AdminScreen = () => {
     latitude: "",
     longitude: "",
   });
-  const [shuttleForm, setShuttleForm] = useState({
-    reg_number: "",
-    capacity: 5,
-    is_active: true,
+  const [studentForm, setStudentForm] = useState({
+    student_name: "",
+    student_code: "",
+    school_id: "",
+    class_level: "",
+    parent_id: "",
+    shuttle_reg_number: "",
+    onboarded: false,
   });
 
-  // Fetch schools and shuttles
+  // Hardcoded class levels
+  const CLASS_LEVELS = [
+    "primary_one",
+    "primary_two",
+    "primary_three",
+    "primary_four",
+    "primary_five",
+    "primary_six",
+    "primary_seven",
+  ];
+
+  // Fetch data
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -79,30 +127,59 @@ const AdminScreen = () => {
       };
 
       // Fetch schools
-      console.log("Fetching schools from:", `${Config.API_BASE_URL}/api/schools/`); // Debug
+      console.log("Fetching schools from:", `${Config.API_BASE_URL}/api/schools/`);
       const schoolsRes = await fetch(`${Config.API_BASE_URL}/api/schools/`, { headers });
       if (!schoolsRes.ok) {
         const errorText = await schoolsRes.text();
         throw new Error(`Failed to fetch schools: ${schoolsRes.status} ${errorText}`);
       }
       const schoolsData = await schoolsRes.json();
-      console.log("Schools fetched:", schoolsData); // Debug
+      console.log("Schools fetched:", schoolsData);
       setSchools(schoolsData);
 
+      // Fetch students
+      console.log("Fetching students from:", `${Config.API_BASE_URL}/api/students/`);
+      const studentsRes = await fetch(`${Config.API_BASE_URL}/api/students/`, { headers });
+      if (!studentsRes.ok) {
+        const errorText = await studentsRes.text();
+        throw new Error(`Failed to fetch students: ${studentsRes.status} ${errorText}`);
+      }
+      const studentsData = await studentsRes.json();
+      if (!Array.isArray(studentsData)) {
+        console.error("Student data is not an array:", studentsData);
+        throw new Error("Received invalid format for student data.");
+      }
+      console.log("Students fetched:", studentsData);
+      setStudents(studentsData);
+
+      // Fetch parents
+      console.log("Fetching parents from:", `${Config.API_BASE_URL}/api/parents/`);
+      const parentsRes = await fetch(`${Config.API_BASE_URL}/api/parents/`, { headers });
+      if (!parentsRes.ok) {
+        const errorText = await parentsRes.text();
+        throw new Error(`Failed to fetch parents: ${parentsRes.status} ${errorText}`);
+      }
+      const parentsData = await parentsRes.json();
+      if (!Array.isArray(parentsData)) {
+        console.error("Parent data is not an array:", parentsData);
+        throw new Error("Received invalid format for parent data.");
+      }
+      console.log("Parents fetched:", parentsData);
+      setParents(parentsData);
+
       // Fetch shuttles
-      console.log("Fetching shuttles from:", `${Config.API_BASE_URL}/api/shuttles/`); // Debug
+      console.log("Fetching shuttles from:", `${Config.API_BASE_URL}/api/shuttles/`);
       const shuttlesRes = await fetch(`${Config.API_BASE_URL}/api/shuttles/`, { headers });
       if (!shuttlesRes.ok) {
         const errorText = await shuttlesRes.text();
         throw new Error(`Failed to fetch shuttles: ${shuttlesRes.status} ${errorText}`);
       }
       const shuttlesData = await shuttlesRes.json();
-      // *** Important: Ensure shuttlesData is an array ***
       if (!Array.isArray(shuttlesData)) {
         console.error("Shuttle data is not an array:", shuttlesData);
         throw new Error("Received invalid format for shuttle data.");
       }
-      console.log("Shuttles fetched:", shuttlesData); // Debug
+      console.log("Shuttles fetched:", shuttlesData);
       setShuttles(shuttlesData);
     } catch (err: any) {
       console.error("Fetch error:", err);
@@ -113,7 +190,7 @@ const AdminScreen = () => {
   };
 
   useEffect(() => {
-    console.log("Fetching data on mount"); // Debug
+    console.log("Fetching data on mount");
     fetchData();
   }, []);
 
@@ -132,7 +209,7 @@ const AdminScreen = () => {
       if (schoolForm.latitude.trim()) body.latitude = parseFloat(schoolForm.latitude);
       if (schoolForm.longitude.trim()) body.longitude = parseFloat(schoolForm.longitude);
 
-      console.log("Adding school with body:", body); // Debug
+      console.log("Adding school with body:", body);
       const response = await fetch(`${Config.API_BASE_URL}/api/schools/`, {
         method: "POST",
         headers: {
@@ -143,13 +220,13 @@ const AdminScreen = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error occurred" }));
         console.error("Add school failed:", response.status, errorData);
         throw new Error(`Failed to add school: ${errorData.detail || JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
-      console.log("School added:", data); // Debug
+      console.log("School added:", data);
       setSchools([...schools, data]);
       setModalVisible(false);
       setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
@@ -178,9 +255,9 @@ const AdminScreen = () => {
       if (schoolForm.latitude.trim()) body.latitude = parseFloat(schoolForm.latitude);
       if (schoolForm.longitude.trim()) body.longitude = parseFloat(schoolForm.longitude);
 
-      console.log(`Updating school ${schoolForm.id} with body:`, body); // Debug
+      console.log(`Updating school ${schoolForm.id} with body:`, body);
       const response = await fetch(`${Config.API_BASE_URL}/api/schools/${schoolForm.id}/`, {
-        method: "PUT", // Use PUT or PATCH as appropriate for your backend
+        method: "PUT",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -189,13 +266,13 @@ const AdminScreen = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error occurred" }));
         console.error("Update school failed:", response.status, errorData);
         throw new Error(`Failed to update school: ${errorData.detail || JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
-      console.log("School updated:", data); // Debug
+      console.log("School updated:", data);
       setSchools(schools.map((s) => (s.id === data.id ? data : s)));
       setModalVisible(false);
       setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
@@ -209,7 +286,7 @@ const AdminScreen = () => {
   const handleDeleteSchool = async (schoolId: string) => {
     Alert.alert(
       "Confirm Delete",
-      `Are you sure you want to delete this school and all its associated shuttles?`,
+      `Are you sure you want to delete this school and all its associated students?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -217,7 +294,7 @@ const AdminScreen = () => {
           style: "destructive",
           onPress: async () => {
             try {
-              console.log("Deleting school:", schoolId); // Debug
+              console.log("Deleting school:", schoolId);
               const response = await fetch(`${Config.API_BASE_URL}/api/schools/${schoolId}/`, {
                 method: "DELETE",
                 headers: {
@@ -231,8 +308,7 @@ const AdminScreen = () => {
                 throw new Error(`Failed to delete school: ${errorText}`);
               }
 
-              console.log("School deleted:", schoolId); // Debug
-              // Refresh data to ensure consistency
+              console.log("School deleted:", schoolId);
               await fetchData();
               Alert.alert("Success", "School deleted successfully");
             } catch (err: any) {
@@ -245,30 +321,41 @@ const AdminScreen = () => {
     );
   };
 
-  const handleAddShuttle = async () => {
-    if (!selectedSchoolId) {
-      Alert.alert("Error", "No school selected for the shuttle");
+  const handleAddStudent = async () => {
+    if (!studentForm.student_name.trim()) {
+      Alert.alert("Error", "Student name is required");
       return;
     }
-    if (!shuttleForm.reg_number.trim()) {
-      Alert.alert("Error", "Registration number is required");
+    if (!studentForm.student_code.trim()) {
+      Alert.alert("Error", "Student code is required");
       return;
     }
-    if (shuttleForm.capacity <= 0) {
-      Alert.alert("Error", "Capacity must be a positive number");
+    if (!studentForm.school_id) {
+      Alert.alert("Error", "School is required");
+      return;
+    }
+    if (!studentForm.class_level.trim()) {
+      Alert.alert("Error", "Class level is required");
+      return;
+    }
+    if (studentForm.onboarded && !studentForm.shuttle_reg_number) {
+      Alert.alert("Error", "Shuttle is required when student is onboarded");
       return;
     }
 
     try {
-      // *** MODIFIED: Send school ID string, not the object ***
-      const body = {
-        reg_number: shuttleForm.reg_number,
-        school: selectedSchoolId, // Send the ID
-        capacity: shuttleForm.capacity,
-        is_active: shuttleForm.is_active,
+      const body: any = {
+        student_name: studentForm.student_name,
+        student_code: studentForm.student_code,
+        school: studentForm.school_id,
+        class_level: studentForm.class_level,
+        onboarded: studentForm.onboarded,
       };
-      console.log("Adding shuttle with body:", body); // Debug
-      const response = await fetch(`${Config.API_BASE_URL}/api/shuttles/`, {
+      if (studentForm.parent_id) body.parent = studentForm.parent_id;
+      if (studentForm.shuttle_reg_number) body.shuttle = studentForm.shuttle_reg_number;
+
+      console.log("Adding student with body:", body);
+      const response = await fetch(`${Config.API_BASE_URL}/api/students/`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -278,137 +365,49 @@ const AdminScreen = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
-        console.error("Add shuttle failed:", response.status, errorData);
-        throw new Error(`Failed to add shuttle: ${errorData.detail || JSON.stringify(errorData)}`);
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error occurred" }));
+        console.error("Add student failed:", response.status, errorData);
+        throw new Error(`Failed to add student: ${errorData.detail || JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
-      console.log("Shuttle added:", data); // Debug
-      // *** Refresh data instead of just appending ***
-      // This ensures the nested school object is fetched correctly
+      console.log("Student added:", data);
       await fetchData();
-      // setShuttles([...shuttles, data]); // Replace with fetchData
       setModalVisible(false);
-      setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
-      setSelectedSchoolId(null);
-      Alert.alert("Success", "Shuttle added successfully");
-    } catch (err: any) {
-      console.error("Add shuttle error:", err);
-      Alert.alert("Error", err.message || "Failed to add shuttle");
-    }
-  };
-
-  const handleUpdateShuttle = async () => {
-    if (!selectedSchoolId) {
-      Alert.alert("Error", "School context lost for shuttle update."); // More specific error
-      return;
-    }
-    if (!shuttleForm.reg_number.trim()) {
-      Alert.alert("Error", "Registration number is required");
-      return;
-    }
-    if (shuttleForm.capacity <= 0) {
-      Alert.alert("Error", "Capacity must be a positive number");
-      return;
-    }
-
-    try {
-      // *** MODIFIED: Send school ID string ***
-      const body = {
-        reg_number: shuttleForm.reg_number,
-        school: selectedSchoolId, // Send the ID
-        capacity: shuttleForm.capacity,
-        is_active: shuttleForm.is_active,
-      };
-      console.log(`Updating shuttle ${shuttleForm.reg_number} with body:`, body); // Debug
-      const response = await fetch(`${Config.API_BASE_URL}/api/shuttles/${shuttleForm.reg_number}/`, {
-        method: "PUT", // Or PATCH
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
+      setStudentForm({
+        student_name: "",
+        student_code: "",
+        school_id: "",
+        class_level: "",
+        parent_id: "",
+        shuttle_reg_number: "",
+        onboarded: false,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
-        console.error("Update shuttle failed:", response.status, errorData);
-        throw new Error(`Failed to update shuttle: ${errorData.detail || JSON.stringify(errorData)}`);
-      }
-
-      const data = await response.json();
-      console.log("Shuttle updated:", data); // Debug
-      // *** Refresh data instead of just mapping ***
-      await fetchData();
-      // setShuttles(shuttles.map((s) => (s.reg_number === data.reg_number ? data : s))); // Replace with fetchData
-      setModalVisible(false);
-      setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
       setSelectedSchoolId(null);
-      Alert.alert("Success", "Shuttle updated successfully");
+      Alert.alert("Success", "Student added successfully");
     } catch (err: any) {
-      console.error("Update shuttle error:", err);
-      Alert.alert("Error", err.message || "Failed to update shuttle");
+      console.error("Add student error:", err);
+      Alert.alert("Error", err.message || "Failed to add student");
     }
-  };
-
-  const handleDeleteShuttle = async (regNumber: string) => {
-    Alert.alert(
-      "Confirm Delete",
-      `Are you sure you want to delete shuttle ${regNumber}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              console.log("Deleting shuttle:", regNumber); // Debug
-              const response = await fetch(`${Config.API_BASE_URL}/api/shuttles/${regNumber}/`, {
-                method: "DELETE",
-                headers: {
-                  Accept: "application/json",
-                },
-              });
-
-              if (!response.ok && response.status !== 204) {
-                const errorText = await response.text();
-                console.error("Delete shuttle failed:", response.status, errorText);
-                throw new Error(`Failed to delete shuttle: ${errorText}`);
-              }
-
-              console.log("Shuttle deleted:", regNumber); // Debug
-              // *** Refresh data ***
-              await fetchData();
-              // setShuttles(shuttles.filter((s) => s.reg_number !== regNumber)); // Replace with fetchData
-              Alert.alert("Success", "Shuttle deleted successfully");
-            } catch (err: any) {
-              console.error("Delete shuttle error:", err);
-              Alert.alert("Error", err.message || "Failed to delete shuttle");
-            }
-          }
-        }
-      ]
-    );
   };
 
   // UI Helpers
   const toggleSchool = (schoolId: string) => {
-    console.log("Toggling school:", schoolId); // Debug
+    console.log("Toggling school:", schoolId);
     setExpandedSchoolId(expandedSchoolId === schoolId ? null : schoolId);
+    setExpandedClassLevel(null);
   };
 
-  // *** MODIFIED getShuttlesForSchool Function ***
-  const getShuttlesForSchool = (schoolId: string): Shuttle[] => {
-    if (!Array.isArray(shuttles)) {
-      console.error("getShuttlesForSchool called when shuttles is not an array:", shuttles);
-      return []; // Return empty array if shuttles state is invalid
-    }
-    const filtered = shuttles.filter((shuttle) => {
-      // Check if shuttle.school and shuttle.school.id exist before comparing
-      return shuttle.school?.id === schoolId;
-    });
-    console.log(`Shuttles for school ${schoolId}:`, filtered); // Debug
+  const toggleClass = (classLevel: string) => {
+    console.log("Toggling class:", classLevel);
+    setExpandedClassLevel(expandedClassLevel === classLevel ? null : classLevel);
+  };
+
+  const getStudentsForClass = (schoolId: string, classLevel: string): Student[] => {
+    const filtered = students.filter(
+      (student) => student.school_id === schoolId && student.class_level === classLevel
+    );
+    console.log(`Students for school ${schoolId}, class ${classLevel}:`, filtered);
     return filtered;
   };
 
@@ -440,7 +439,7 @@ const AdminScreen = () => {
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
-            console.log("Opening add school modal"); // Debug
+            console.log("Opening add school modal");
             setCurrentStep("school");
             setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
             setModalVisible(true);
@@ -479,71 +478,100 @@ const AdminScreen = () => {
                   </Text>
                 ) : null}
 
-                {/* Shuttles Section */}
-                <Text style={styles.sectionTitle}>Shuttles</Text>
-                {getShuttlesForSchool(school.id).length === 0 ? (
-                  <Text style={styles.noData}>No shuttles registered for this school.</Text>
+                {/* Classes Section */}
+                <Text style={styles.sectionTitle}>Classes</Text>
+                {CLASS_LEVELS.length === 0 ? (
+                  <Text style={styles.noData}>No classes defined.</Text>
                 ) : (
-                  getShuttlesForSchool(school.id).map((shuttle) => (
-                    <View key={shuttle.reg_number} style={styles.itemRow}>
-                      <Icon name="directions-bus" size={18} color="#4CAF50" style={{ marginRight: 10 }} />
-                      <View style={styles.shuttleInfo}>
-                        <Text style={styles.itemTextPrimary}>
-                          {shuttle.reg_number}
+                  CLASS_LEVELS.map((classLevel) => (
+                    <View key={classLevel} style={styles.classContainer}>
+                      <TouchableOpacity
+                        style={styles.classHeader}
+                        onPress={() => toggleClass(classLevel)}
+                      >
+                        <Text style={styles.className}>
+                          {classLevel.replace(/_/g, " ").toUpperCase()}
                         </Text>
-                        <Text style={styles.itemTextSecondary}>
-                          Capacity: {shuttle.capacity} | Status: {shuttle.is_active ? "Active" : "Inactive"}
-                        </Text>
-                        {shuttle.driver_code && (
-                          <Text style={styles.itemTextSecondary}>Driver Code: {shuttle.driver_code}</Text>
-                        )}
-                      </View>
-                      <View style={styles.actionIcons}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            console.log("Editing shuttle:", shuttle.reg_number); // Debug
-                            setCurrentStep("edit_shuttle");
-                            setShuttleForm({
-                              reg_number: shuttle.reg_number,
-                              capacity: shuttle.capacity,
-                              is_active: shuttle.is_active,
-                            });
-                            // Make sure school.id is passed correctly
-                            setSelectedSchoolId(shuttle.school?.id); // Use the ID from the shuttle data
-                            setModalVisible(true);
-                          }}
-                        >
-                          <Icon name="edit" size={20} color="#007AFF" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteShuttle(shuttle.reg_number)} // Simplified call
-                        >
-                          <Icon name="delete" size={20} color="#dc3545" />
-                        </TouchableOpacity>
-                      </View>
+                        <Icon
+                          name={expandedClassLevel === classLevel ? "expand-less" : "expand-more"}
+                          size={20}
+                          color="#007AFF"
+                        />
+                      </TouchableOpacity>
+
+                      {expandedClassLevel === classLevel && (
+                        <View style={styles.classContent}>
+                          {getStudentsForClass(school.id, classLevel).length === 0 ? (
+                            <View>
+                              <Text style={styles.noData}>No students in this class.</Text>
+                              <TouchableOpacity
+                                style={styles.actionButton}
+                                onPress={() => {
+                                  console.log("Opening add student modal for class:", classLevel);
+                                  setCurrentStep("student");
+                                  setStudentForm({
+                                    student_name: "",
+                                    student_code: "",
+                                    school_id: school.id,
+                                    class_level: classLevel,
+                                    parent_id: "",
+                                    shuttle_reg_number: "",
+                                    onboarded: false,
+                                  });
+                                  setSelectedSchoolId(school.id);
+                                  setModalVisible(true);
+                                }}
+                              >
+                                <Icon name="add" size={16} color="white" style={{ marginRight: 5 }} />
+                                <Text style={styles.buttonText}>Add Student</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            getStudentsForClass(school.id, classLevel).map((student) => (
+                              <View key={student.student_code} style={styles.studentRow}>
+                                <Icon name="person" size={18} color="#17a2b8" style={{ marginRight: 10 }} />
+                                <View style={styles.studentInfo}>
+                                  <Text style={styles.itemTextPrimary}>
+                                    {student.student_name} ({student.student_code})
+                                  </Text>
+                                  <Text style={styles.itemTextSecondary}>
+                                    Onboarded: {student.onboarded ? "Yes" : "No"}
+                                  </Text>
+                                  {student.parent_details && (
+                                    <>
+                                      <Text style={styles.itemTextSecondary}>
+                                        Parent: {student.parent_details.parent_name}
+                                      </Text>
+                                      <Text style={styles.itemTextSecondary}>
+                                        Phone: {student.parent_details.parent_phone}
+                                      </Text>
+                                      <Text style={styles.itemTextSecondary}>
+                                        Address: {student.parent_details.parent_address}
+                                      </Text>
+                                    </>
+                                  )}
+                                  {student.shuttle && (
+                                    <Text style={styles.itemTextSecondary}>
+                                      Shuttle: {student.shuttle.reg_number} (
+                                      {student.shuttle.is_active ? "Active" : "Inactive"})
+                                    </Text>
+                                  )}
+                                </View>
+                              </View>
+                            ))
+                          )}
+                        </View>
+                      )}
                     </View>
                   ))
                 )}
 
-                {/* Action Buttons for the School */}
+                {/* Action Buttons */}
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => {
-                      console.log("Opening add shuttle modal for school:", school.id); // Debug
-                      setCurrentStep("shuttle");
-                      setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
-                      setSelectedSchoolId(school.id); // Set the ID of the current school
-                      setModalVisible(true);
-                    }}
-                  >
-                    <Icon name="add" size={16} color="white" style={{ marginRight: 5 }} />
-                    <Text style={styles.buttonText}>Add Shuttle</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => {
-                      console.log("Opening edit school modal:", school.id); // Debug
+                      console.log("Opening edit school modal:", school.id);
                       setCurrentStep("edit_school");
                       setSchoolForm({
                         id: school.id,
@@ -560,7 +588,7 @@ const AdminScreen = () => {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionButton, { backgroundColor: "#dc3545" }]}
-                    onPress={() => handleDeleteSchool(school.id)} // Simplified call
+                    onPress={() => handleDeleteSchool(school.id)}
                   >
                     <Icon name="delete" size={16} color="white" style={{ marginRight: 5 }} />
                     <Text style={styles.buttonText}>Delete School</Text>
@@ -576,19 +604,33 @@ const AdminScreen = () => {
       <Modal
         visible={modalVisible}
         animationType="slide"
-        transparent={true} // Make modal background semi-transparent
+        transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}> {/* Added overlay */}
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {currentStep === "school" && "Add New School"}
                 {currentStep === "edit_school" && "Edit School"}
-                {currentStep === "shuttle" && "Add New Shuttle"}
-                {currentStep === "edit_shuttle" && "Edit Shuttle"}
+                {currentStep === "student" && "Add New Student"}
               </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity
+                onPress={() => {
+                  setModalVisible(false);
+                  setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
+                  setStudentForm({
+                    student_name: "",
+                    student_code: "",
+                    school_id: "",
+                    class_level: "",
+                    parent_id: "",
+                    shuttle_reg_number: "",
+                    onboarded: false,
+                  });
+                  setSelectedSchoolId(null);
+                }}
+              >
                 <Icon name="close" size={24} color="#6c757d" />
               </TouchableOpacity>
             </View>
@@ -598,33 +640,33 @@ const AdminScreen = () => {
                 <>
                   <TextInput
                     style={styles.input}
-                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholderTextColor="#6c757d"
                     placeholder="Enter school name (e.g., Sunshine Academy)"
                     value={schoolForm.school_name}
                     onChangeText={(text) => setSchoolForm({ ...schoolForm, school_name: text })}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholderTextColor="#6c757d"
                     placeholder="Enter address (e.g., 123 Kampala Rd)"
                     value={schoolForm.school_address}
                     onChangeText={(text) => setSchoolForm({ ...schoolForm, school_address: text })}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholderTextColor="#6c757d"
                     placeholder="Latitude (e.g., 0.3476, optional)"
                     keyboardType="numeric"
                     value={schoolForm.latitude}
-                    onChangeText={(text) => setSchoolForm({ ...schoolForm, latitude: text.replace(/[^0-9.-]/g, '') })} // Basic numeric input cleaning
+                    onChangeText={(text) => setSchoolForm({ ...schoolForm, latitude: text.replace(/[^0-9.-]/g, "") })}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholderTextColor="#6c757d"
                     placeholder="Longitude (e.g., 32.5825, optional)"
                     keyboardType="numeric"
                     value={schoolForm.longitude}
-                    onChangeText={(text) => setSchoolForm({ ...schoolForm, longitude: text.replace(/[^0-9.-]/g, '') })} // Basic numeric input cleaning
+                    onChangeText={(text) => setSchoolForm({ ...schoolForm, longitude: text.replace(/[^0-9.-]/g, "") })}
                   />
                   <TouchableOpacity
                     style={[styles.button, styles.primaryButton]}
@@ -637,62 +679,109 @@ const AdminScreen = () => {
                 </>
               )}
 
-              {/* Shuttle Form */}
-              {(currentStep === "shuttle" || currentStep === "edit_shuttle") && (
+              {/* Student Form */}
+              {currentStep === "student" && (
                 <>
                   <Text style={styles.inputLabel}>
-                    School: {schools.find((s) => s.id === selectedSchoolId)?.school_name || "N/A"}
+                    School: {schools.find((s) => s.id === studentForm.school_id)?.school_name || "N/A"}
+                  </Text>
+                  <Text style={styles.inputLabel}>
+                    Class: {studentForm.class_level.replace(/_/g, " ").toUpperCase()}
                   </Text>
                   <TextInput
                     style={styles.input}
-                    placeholderTextColor="#6c757d" // Added placeholder text color
-                    placeholder="Enter reg. number (e.g., UAB123X)"
-                    value={shuttleForm.reg_number}
-                    onChangeText={(text) => setShuttleForm({ ...shuttleForm, reg_number: text.toUpperCase() })} // Example: Auto-uppercase
-                    editable={currentStep === "shuttle"} // Only editable when adding
-                    autoCapitalize="characters"
+                    placeholderTextColor="#6c757d"
+                    placeholder="Enter student name (e.g., Halley Quin)"
+                    value={studentForm.student_name}
+                    onChangeText={(text) => setStudentForm({ ...studentForm, student_name: text })}
                   />
                   <TextInput
                     style={styles.input}
-                    placeholderTextColor="#6c757d" // Added placeholder text color
-                    placeholder="Capacity (e.g., 5)"
-                    keyboardType="numeric"
-                    value={shuttleForm.capacity.toString()}
-                    onChangeText={(text) =>
-                      setShuttleForm({ ...shuttleForm, capacity: parseInt(text.replace(/[^0-9]/g, '')) || 5 }) // Clean input
-                    }
+                    placeholderTextColor="#6c757d"
+                    placeholder="Enter student code (e.g., S765)"
+                    value={studentForm.student_code}
+                    onChangeText={(text) => setStudentForm({ ...studentForm, student_code: text.toUpperCase() })}
+                    autoCapitalize="characters"
                   />
+                  <Text style={styles.inputLabel}>Parent (optional):</Text>
+                  <Picker
+                    selectedValue={studentForm.parent_id}
+                    onValueChange={(itemValue) =>
+                      setStudentForm({ ...studentForm, parent_id: itemValue })
+                    }
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select a parent" value="" />
+                    {parents.map((parent) => (
+                      <Picker.Item
+                        key={parent.id}
+                        label={parent.parent_name}
+                        value={parent.id}
+                      />
+                    ))}
+                  </Picker>
                   <View style={styles.switchContainer}>
-                    <Text style={styles.switchLabel}>Active Status:</Text>
+                    <Text style={styles.switchLabel}>Onboarded:</Text>
                     <TouchableOpacity
-                      style={[
-                        styles.switch,
-                        { backgroundColor: shuttleForm.is_active ? "#28a745" : "#dc3545" },
-                      ]}
-                      onPress={() => setShuttleForm({ ...shuttleForm, is_active: !shuttleForm.is_active })}
+                      style={[styles.switch, { backgroundColor: studentForm.onboarded ? "#28a745" : "#dc3545" }]}
+                      onPress={() =>
+                        setStudentForm({
+                          ...studentForm,
+                          onboarded: !studentForm.onboarded,
+                          shuttle_reg_number: !studentForm.onboarded ? studentForm.shuttle_reg_number : "",
+                        })
+                      }
                     >
-                      <Text style={styles.switchText}>{shuttleForm.is_active ? "Active" : "Inactive"}</Text>
+                      <Text style={styles.switchText}>{studentForm.onboarded ? "Yes" : "No"}</Text>
                     </TouchableOpacity>
                   </View>
+                  {studentForm.onboarded && (
+                    <>
+                      <Text style={styles.inputLabel}>Shuttle (required):</Text>
+                      <Picker
+                        selectedValue={studentForm.shuttle_reg_number}
+                        onValueChange={(itemValue) =>
+                          setStudentForm({ ...studentForm, shuttle_reg_number: itemValue })
+                        }
+                        style={styles.picker}
+                      >
+                        <Picker.Item label="Select a shuttle" value="" />
+                        {shuttles
+                          .filter((shuttle) => shuttle.school.id === studentForm.school_id)
+                          .map((shuttle) => (
+                            <Picker.Item
+                              key={shuttle.reg_number}
+                              label={`${shuttle.reg_number} (${shuttle.is_active ? "Active" : "Inactive"})`}
+                              value={shuttle.reg_number}
+                            />
+                          ))}
+                      </Picker>
+                    </>
+                  )}
                   <TouchableOpacity
                     style={[styles.button, styles.primaryButton]}
-                    onPress={currentStep === "shuttle" ? handleAddShuttle : handleUpdateShuttle}
+                    onPress={handleAddStudent}
                   >
-                    <Text style={styles.buttonText}>
-                      {currentStep === "shuttle" ? "Save Shuttle" : "Update Shuttle"}
-                    </Text>
+                    <Text style={styles.buttonText}>Save Student</Text>
                   </TouchableOpacity>
                 </>
               )}
 
-              {/* Cancel button moved outside conditional blocks */}
               <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
                 onPress={() => {
-                  console.log("Closing modal"); // Debug
+                  console.log("Closing modal");
                   setModalVisible(false);
                   setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
-                  setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
+                  setStudentForm({
+                    student_name: "",
+                    student_code: "",
+                    school_id: "",
+                    class_level: "",
+                    parent_id: "",
+                    shuttle_reg_number: "",
+                    onboarded: false,
+                  });
                   setSelectedSchoolId(null);
                 }}
               >
@@ -705,6 +794,7 @@ const AdminScreen = () => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -719,7 +809,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: '#0056b3', // Slightly darker shade for depth
+    borderBottomColor: "#0056b3",
   },
   headerText: {
     color: "white",
@@ -733,7 +823,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 5,
     alignItems: "center",
-    elevation: 2, // Add subtle shadow
+    elevation: 2,
   },
   addButtonText: {
     color: "white",
@@ -745,13 +835,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "white",
-    marginBottom: 12, // Increased spacing
+    marginBottom: 12,
     borderRadius: 8,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15, // Slightly reduced opacity
-    shadowRadius: 3, // Slightly increased radius
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
   },
   cardHeader: {
     flexDirection: "row",
@@ -759,100 +849,115 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: "#e9ecef",
   },
   schoolName: {
-    fontSize: 17, // Slightly larger
+    fontSize: 17,
     fontWeight: "600",
-    color: "#343a40", // Darker grey
+    color: "#343a40",
   },
   cardContent: {
     padding: 15,
   },
   schoolAddress: {
-    color: "#495057", // Slightly darker grey
-    marginBottom: 5, // Reduced margin
+    color: "#495057",
+    marginBottom: 5,
     fontSize: 14,
   },
   schoolCoords: {
     color: "#6c757d",
-    marginBottom: 15, // Increased margin before shuttles section
+    marginBottom: 15,
     fontSize: 13,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   sectionTitle: {
-    fontSize: 15, // Slightly larger
-    fontWeight: "bold", // Bolder
-    color: "#007AFF", // Use theme color
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#007AFF",
     marginTop: 10,
-    marginBottom: 10, // Increased margin
+    marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#dee2e6',
+    borderBottomColor: "#dee2e6",
     paddingBottom: 5,
   },
-  itemRow: {
+  classContainer: {
+    marginBottom: 10,
+    paddingLeft: 10,
+    borderLeftWidth: 2,
+    borderLeftColor: "#007AFF",
+  },
+  classHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10, // Increased padding
+    paddingVertical: 8,
+  },
+  className: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#343a40",
+  },
+  classContent: {
+    paddingLeft: 10,
+    paddingTop: 5,
+  },
+  studentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f3f5",
   },
-  itemTextPrimary: { // Style for main shuttle info like Reg Number
-    color: '#343a40',
+  studentInfo: {
+    flex: 1,
+  },
+  itemTextPrimary: {
+    color: "#343a40",
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 2,
   },
-  itemTextSecondary: { // Style for secondary info like capacity, status
-    color: '#6c757d',
+  itemTextSecondary: {
+    color: "#6c757d",
     fontSize: 13,
-  },
-  shuttleInfo: {
-    flex: 1,
-    // marginLeft: 10, // Removed margin, handled by Icon marginRight
-  },
-  actionIcons: {
-    flexDirection: "row",
-    gap: 18, // Increased gap
   },
   noData: {
     color: "#6c757d",
     fontStyle: "italic",
-    marginVertical: 10, // Increased margin
-    textAlign: 'center',
+    marginVertical: 10,
+    textAlign: "center",
     fontSize: 14,
   },
   actionButtons: {
     flexDirection: "row",
-    justifyContent: "space-around", // Better distribution
-    marginTop: 20, // Increased margin
+    justifyContent: "space-around",
+    marginTop: 20,
     gap: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: "#e9ecef",
     paddingTop: 15,
   },
   actionButton: {
-    flexDirection: 'row', // To align icon and text
-    alignItems: 'center',
-    justifyContent: 'center',
-    // flex: 1, // Removed flex: 1 for potentially different button sizes
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#007AFF",
     paddingVertical: 10,
-    paddingHorizontal: 15, // Adjusted padding
+    paddingHorizontal: 15,
     borderRadius: 5,
     elevation: 1,
   },
   buttonText: {
     color: "white",
     fontWeight: "500",
-    fontSize: 14, // Standardized font size
+    fontSize: 14,
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   error: {
     color: "#dc3545",
@@ -871,47 +976,47 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "500",
   },
-  modalOverlay: { // Added style for semi-transparent background
+  modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent black
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  modalContainer: { // Adjusted modal container style
-    width: '90%', // Set a width
-    maxHeight: '85%', // Set a max height
+  modalContainer: {
+    width: "90%",
+    maxHeight: "85%",
     backgroundColor: "white",
-    borderRadius: 10, // Rounded corners
-    overflow: 'hidden', // Ensure content stays within bounds
+    borderRadius: 10,
+    overflow: "hidden",
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    backgroundColor: '#f8f9fa', // Light header background
+    borderBottomColor: "#e9ecef",
+    backgroundColor: "#f8f9fa",
   },
   modalContent: {
     padding: 20,
   },
   modalTitle: {
-    fontSize: 18, // Adjusted size
-    fontWeight: "600", // Adjusted weight
+    fontSize: 18,
+    fontWeight: "600",
     color: "#343a40",
   },
   inputLabel: {
-    fontSize: 15, // Adjusted size
+    fontSize: 15,
     color: "#495057",
-    marginBottom: 8, // Adjusted margin
-    fontWeight: '500',
+    marginBottom: 8,
+    fontWeight: "500",
   },
   input: {
     borderWidth: 1,
@@ -922,34 +1027,41 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     fontSize: 15,
   },
+  picker: {
+    borderWidth: 1,
+    borderColor: "#ced4da",
+    borderRadius: 5,
+    marginBottom: 15,
+    backgroundColor: "white",
+  },
   switchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: 'space-between', // Align items nicely
-    marginBottom: 20, // Increased margin
+    justifyContent: "space-between",
+    marginBottom: 20,
     paddingVertical: 5,
   },
   switchLabel: {
     fontSize: 16,
     color: "#495057",
-    fontWeight: '500',
+    fontWeight: "500",
   },
   switch: {
     paddingVertical: 8,
     paddingHorizontal: 20,
-    borderRadius: 15, // Make it more pill-like
-    minWidth: 80, // Ensure minimum width
-    alignItems: 'center',
+    borderRadius: 15,
+    minWidth: 80,
+    alignItems: "center",
   },
   switchText: {
     color: "white",
-    fontWeight: "bold", // Bolder text
+    fontWeight: "bold",
   },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14, // Slightly adjusted padding
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 14,
     borderRadius: 5,
     marginBottom: 10,
     elevation: 1,
@@ -958,7 +1070,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
   },
   cancelButton: {
-    backgroundColor: "#6c757d", // Grey cancel button
+    backgroundColor: "#6c757d",
   },
 });
 
