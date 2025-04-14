@@ -6,183 +6,410 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  ScrollView,
   Modal,
   Alert,
   ActivityIndicator,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import Config from "react-native-config";
 
-// Use your actual backend IP address here
-const API_BASE = 'http://192.168.137.173:8000';
-
-// Types matching your Django models
+// Types matching Django models/serializers
 type School = {
-  id: string;
+  id: string; // UUID
   school_name: string;
   school_address?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at?: string;
+  modified_at?: string;
 };
 
+// *** MODIFIED Shuttle Type ***
+// Reflecting that 'school' will be a nested object from the serializer
 type Shuttle = {
   reg_number: string;
-  school: string; // school ID
+  school: School; // Changed from string to School object
   capacity: number;
-};
-
-type Driver = {
-  id: string;
-  user: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
-  driver_code: string;
-  school: string; // school ID
-};
-
-type Student = {
-  id: string;
-  student_name: string;
-  class_level: string;
-  school: string; // school ID
-  parent?: {
-    parent_name: string;
-    parent_phone: string;
-  };
+  is_active: boolean;
+  current_latitude?: number;
+  current_longitude?: number;
+  created_at?: string;
+  modified_at?: string;
+  driver_code?: string | null;
 };
 
 const AdminScreen = () => {
+  console.log("AdminScreen rendered"); // Debug: Confirm component mounts
+
   // Data states
   const [schools, setSchools] = useState<School[]>([]);
   const [shuttles, setShuttles] = useState<Shuttle[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  
-  // UI states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // UI states
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentStep, setCurrentStep] = useState<"school" | "shuttle" | "driver" | "student">("school");
+  const [currentStep, setCurrentStep] = useState<"school" | "shuttle" | "edit_school" | "edit_shuttle">("school");
   const [expandedSchoolId, setExpandedSchoolId] = useState<string | null>(null);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null); // For shuttle creation
 
   // Form states
-  const [newSchool, setNewSchool] = useState({ school_name: "", school_address: "" });
-  const [newShuttle, setNewShuttle] = useState({ reg_number: "", capacity: 20 });
-  const [newDriver, setNewDriver] = useState({ 
-    first_name: "", 
-    last_name: "", 
-    email: "", 
-    driver_code: "" 
+  const [schoolForm, setSchoolForm] = useState({
+    id: "",
+    school_name: "",
+    school_address: "",
+    latitude: "",
+    longitude: "",
   });
-  const [newStudent, setNewStudent] = useState({ 
-    student_name: "", 
-    class_level: "primary_one",
-    parent_name: "",
-    parent_phone: ""
+  const [shuttleForm, setShuttleForm] = useState({
+    reg_number: "",
+    capacity: 5,
+    is_active: true,
   });
 
-  // Fetch all data from backend
+  // Fetch schools and shuttles
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch all schools
-      const schoolsRes = await fetch(`${API_BASE}/api/schools/`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      });
+      const headers = {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      };
+
+      // Fetch schools
+      console.log("Fetching schools from:", `${Config.API_BASE_URL}/api/schools/`); // Debug
+      const schoolsRes = await fetch(`${Config.API_BASE_URL}/api/schools/`, { headers });
+      if (!schoolsRes.ok) {
+        const errorText = await schoolsRes.text();
+        throw new Error(`Failed to fetch schools: ${schoolsRes.status} ${errorText}`);
+      }
       const schoolsData = await schoolsRes.json();
+      console.log("Schools fetched:", schoolsData); // Debug
       setSchools(schoolsData);
 
-      // Fetch all shuttles
-      const shuttlesRes = await fetch(`${API_BASE}/api/shuttles/`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      });
+      // Fetch shuttles
+      console.log("Fetching shuttles from:", `${Config.API_BASE_URL}/api/shuttles/`); // Debug
+      const shuttlesRes = await fetch(`${Config.API_BASE_URL}/api/shuttles/`, { headers });
+      if (!shuttlesRes.ok) {
+        const errorText = await shuttlesRes.text();
+        throw new Error(`Failed to fetch shuttles: ${shuttlesRes.status} ${errorText}`);
+      }
       const shuttlesData = await shuttlesRes.json();
+      // *** Important: Ensure shuttlesData is an array ***
+      if (!Array.isArray(shuttlesData)) {
+        console.error("Shuttle data is not an array:", shuttlesData);
+        throw new Error("Received invalid format for shuttle data.");
+      }
+      console.log("Shuttles fetched:", shuttlesData); // Debug
       setShuttles(shuttlesData);
-
-      // Fetch all drivers
-      const driversRes = await fetch(`${API_BASE}/api/drivers/`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      });
-      const driversData = await driversRes.json();
-      setDrivers(driversData);
-
-      // Fetch all students
-      const studentsRes = await fetch(`${API_BASE}/api/students/`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      });
-      const studentsData = await studentsRes.json();
-      setStudents(studentsData);
-
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError(error.message);
+    } catch (err: any) {
+      console.error("Fetch error:", err);
+      setError(err.message || "Failed to load data");
     } finally {
       setLoading(false);
     }
   };
 
-  // Load data on first render
   useEffect(() => {
+    console.log("Fetching data on mount"); // Debug
     fetchData();
   }, []);
 
-  // Toggle school expansion
+  // CRUD Operations
+  const handleAddSchool = async () => {
+    if (!schoolForm.school_name.trim()) {
+      Alert.alert("Error", "School name is required");
+      return;
+    }
+
+    try {
+      const body: any = {
+        school_name: schoolForm.school_name,
+        school_address: schoolForm.school_address || null,
+      };
+      if (schoolForm.latitude.trim()) body.latitude = parseFloat(schoolForm.latitude);
+      if (schoolForm.longitude.trim()) body.longitude = parseFloat(schoolForm.longitude);
+
+      console.log("Adding school with body:", body); // Debug
+      const response = await fetch(`${Config.API_BASE_URL}/api/schools/`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
+        console.error("Add school failed:", response.status, errorData);
+        throw new Error(`Failed to add school: ${errorData.detail || JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      console.log("School added:", data); // Debug
+      setSchools([...schools, data]);
+      setModalVisible(false);
+      setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
+      Alert.alert("Success", "School added successfully");
+    } catch (err: any) {
+      console.error("Add school error:", err);
+      Alert.alert("Error", err.message || "Failed to add school");
+    }
+  };
+
+  const handleUpdateSchool = async () => {
+    if (!schoolForm.school_name.trim()) {
+      Alert.alert("Error", "School name is required");
+      return;
+    }
+    if (!schoolForm.id) {
+      Alert.alert("Error", "School ID is missing for update.");
+      return;
+    }
+
+    try {
+      const body: any = {
+        school_name: schoolForm.school_name,
+        school_address: schoolForm.school_address || null,
+      };
+      if (schoolForm.latitude.trim()) body.latitude = parseFloat(schoolForm.latitude);
+      if (schoolForm.longitude.trim()) body.longitude = parseFloat(schoolForm.longitude);
+
+      console.log(`Updating school ${schoolForm.id} with body:`, body); // Debug
+      const response = await fetch(`${Config.API_BASE_URL}/api/schools/${schoolForm.id}/`, {
+        method: "PUT", // Use PUT or PATCH as appropriate for your backend
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
+        console.error("Update school failed:", response.status, errorData);
+        throw new Error(`Failed to update school: ${errorData.detail || JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      console.log("School updated:", data); // Debug
+      setSchools(schools.map((s) => (s.id === data.id ? data : s)));
+      setModalVisible(false);
+      setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
+      Alert.alert("Success", "School updated successfully");
+    } catch (err: any) {
+      console.error("Update school error:", err);
+      Alert.alert("Error", err.message || "Failed to update school");
+    }
+  };
+
+  const handleDeleteSchool = async (schoolId: string) => {
+    Alert.alert(
+      "Confirm Delete",
+      `Are you sure you want to delete this school and all its associated shuttles?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("Deleting school:", schoolId); // Debug
+              const response = await fetch(`${Config.API_BASE_URL}/api/schools/${schoolId}/`, {
+                method: "DELETE",
+                headers: {
+                  Accept: "application/json",
+                },
+              });
+
+              if (!response.ok && response.status !== 204) {
+                const errorText = await response.text();
+                console.error("Delete school failed:", response.status, errorText);
+                throw new Error(`Failed to delete school: ${errorText}`);
+              }
+
+              console.log("School deleted:", schoolId); // Debug
+              // Refresh data to ensure consistency
+              await fetchData();
+              Alert.alert("Success", "School deleted successfully");
+            } catch (err: any) {
+              console.error("Delete school error:", err);
+              Alert.alert("Error", err.message || "Failed to delete school");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAddShuttle = async () => {
+    if (!selectedSchoolId) {
+      Alert.alert("Error", "No school selected for the shuttle");
+      return;
+    }
+    if (!shuttleForm.reg_number.trim()) {
+      Alert.alert("Error", "Registration number is required");
+      return;
+    }
+    if (shuttleForm.capacity <= 0) {
+      Alert.alert("Error", "Capacity must be a positive number");
+      return;
+    }
+
+    try {
+      // *** MODIFIED: Send school ID string, not the object ***
+      const body = {
+        reg_number: shuttleForm.reg_number,
+        school: selectedSchoolId, // Send the ID
+        capacity: shuttleForm.capacity,
+        is_active: shuttleForm.is_active,
+      };
+      console.log("Adding shuttle with body:", body); // Debug
+      const response = await fetch(`${Config.API_BASE_URL}/api/shuttles/`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
+        console.error("Add shuttle failed:", response.status, errorData);
+        throw new Error(`Failed to add shuttle: ${errorData.detail || JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      console.log("Shuttle added:", data); // Debug
+      // *** Refresh data instead of just appending ***
+      // This ensures the nested school object is fetched correctly
+      await fetchData();
+      // setShuttles([...shuttles, data]); // Replace with fetchData
+      setModalVisible(false);
+      setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
+      setSelectedSchoolId(null);
+      Alert.alert("Success", "Shuttle added successfully");
+    } catch (err: any) {
+      console.error("Add shuttle error:", err);
+      Alert.alert("Error", err.message || "Failed to add shuttle");
+    }
+  };
+
+  const handleUpdateShuttle = async () => {
+    if (!selectedSchoolId) {
+      Alert.alert("Error", "School context lost for shuttle update."); // More specific error
+      return;
+    }
+    if (!shuttleForm.reg_number.trim()) {
+      Alert.alert("Error", "Registration number is required");
+      return;
+    }
+    if (shuttleForm.capacity <= 0) {
+      Alert.alert("Error", "Capacity must be a positive number");
+      return;
+    }
+
+    try {
+      // *** MODIFIED: Send school ID string ***
+      const body = {
+        reg_number: shuttleForm.reg_number,
+        school: selectedSchoolId, // Send the ID
+        capacity: shuttleForm.capacity,
+        is_active: shuttleForm.is_active,
+      };
+      console.log(`Updating shuttle ${shuttleForm.reg_number} with body:`, body); // Debug
+      const response = await fetch(`${Config.API_BASE_URL}/api/shuttles/${shuttleForm.reg_number}/`, {
+        method: "PUT", // Or PATCH
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }));
+        console.error("Update shuttle failed:", response.status, errorData);
+        throw new Error(`Failed to update shuttle: ${errorData.detail || JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      console.log("Shuttle updated:", data); // Debug
+      // *** Refresh data instead of just mapping ***
+      await fetchData();
+      // setShuttles(shuttles.map((s) => (s.reg_number === data.reg_number ? data : s))); // Replace with fetchData
+      setModalVisible(false);
+      setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
+      setSelectedSchoolId(null);
+      Alert.alert("Success", "Shuttle updated successfully");
+    } catch (err: any) {
+      console.error("Update shuttle error:", err);
+      Alert.alert("Error", err.message || "Failed to update shuttle");
+    }
+  };
+
+  const handleDeleteShuttle = async (regNumber: string) => {
+    Alert.alert(
+      "Confirm Delete",
+      `Are you sure you want to delete shuttle ${regNumber}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("Deleting shuttle:", regNumber); // Debug
+              const response = await fetch(`${Config.API_BASE_URL}/api/shuttles/${regNumber}/`, {
+                method: "DELETE",
+                headers: {
+                  Accept: "application/json",
+                },
+              });
+
+              if (!response.ok && response.status !== 204) {
+                const errorText = await response.text();
+                console.error("Delete shuttle failed:", response.status, errorText);
+                throw new Error(`Failed to delete shuttle: ${errorText}`);
+              }
+
+              console.log("Shuttle deleted:", regNumber); // Debug
+              // *** Refresh data ***
+              await fetchData();
+              // setShuttles(shuttles.filter((s) => s.reg_number !== regNumber)); // Replace with fetchData
+              Alert.alert("Success", "Shuttle deleted successfully");
+            } catch (err: any) {
+              console.error("Delete shuttle error:", err);
+              Alert.alert("Error", err.message || "Failed to delete shuttle");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // UI Helpers
   const toggleSchool = (schoolId: string) => {
+    console.log("Toggling school:", schoolId); // Debug
     setExpandedSchoolId(expandedSchoolId === schoolId ? null : schoolId);
   };
 
-  // Filter data by school
-  const getShuttlesForSchool = (schoolId: string) => {
-    return shuttles.filter(shuttle => shuttle.school === schoolId);
-  };
-
-  const getDriversForSchool = (schoolId: string) => {
-    return drivers.filter(driver => driver.school === schoolId);
-  };
-
-  const getStudentsForSchool = (schoolId: string) => {
-    return students.filter(student => student.school === schoolId);
-  };
-
-  // Add new school
-  const handleAddSchool = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/schools/`, {
-        method: "POST",
-        headers: { 
-          'Accept': 'application/json',
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(newSchool),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to save school: ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setSchools([...schools, data]);
-      setModalVisible(false);
-      setNewSchool({ school_name: "", school_address: "" });
-      
-    } catch (err) {
-      Alert.alert("Error", err.message || "Failed to add school");
+  // *** MODIFIED getShuttlesForSchool Function ***
+  const getShuttlesForSchool = (schoolId: string): Shuttle[] => {
+    if (!Array.isArray(shuttles)) {
+      console.error("getShuttlesForSchool called when shuttles is not an array:", shuttles);
+      return []; // Return empty array if shuttles state is invalid
     }
+    const filtered = shuttles.filter((shuttle) => {
+      // Check if shuttle.school and shuttle.school.id exist before comparing
+      return shuttle.school?.id === schoolId;
+    });
+    console.log(`Shuttles for school ${schoolId}:`, filtered); // Debug
+    return filtered;
   };
 
   if (loading) {
@@ -198,10 +425,7 @@ const AdminScreen = () => {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={fetchData}
-        >
+        <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -212,11 +436,13 @@ const AdminScreen = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>School Admin</Text>
-        <TouchableOpacity 
+        <Text style={styles.headerText}>School Admin Dashboard</Text>
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
+            console.log("Opening add school modal"); // Debug
             setCurrentStep("school");
+            setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
             setModalVisible(true);
           }}
         >
@@ -230,108 +456,114 @@ const AdminScreen = () => {
         data={schools}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={<Text style={styles.noData}>No schools found.</Text>}
         renderItem={({ item: school }) => (
           <View style={styles.card}>
-            {/* School Header */}
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSchool(school.id)}
-            >
+            <TouchableOpacity style={styles.cardHeader} onPress={() => toggleSchool(school.id)}>
               <Text style={styles.schoolName}>{school.school_name}</Text>
-              <Icon 
-                name={expandedSchoolId === school.id ? "expand-less" : "expand-more"} 
-                size={24} 
-                color="#007AFF" 
+              <Icon
+                name={expandedSchoolId === school.id ? "expand-less" : "expand-more"}
+                size={24}
+                color="#007AFF"
               />
             </TouchableOpacity>
 
-            {/* Expanded Content */}
             {expandedSchoolId === school.id && (
               <View style={styles.cardContent}>
                 <Text style={styles.schoolAddress}>
-                  {school.school_address || "No address provided"}
+                  Address: {school.school_address || "Not provided"}
                 </Text>
+                {school.latitude && school.longitude ? (
+                  <Text style={styles.schoolCoords}>
+                    Coordinates: ({school.latitude}, {school.longitude})
+                  </Text>
+                ) : null}
 
                 {/* Shuttles Section */}
                 <Text style={styles.sectionTitle}>Shuttles</Text>
                 {getShuttlesForSchool(school.id).length === 0 ? (
-                  <Text style={styles.noData}>No shuttles registered</Text>
+                  <Text style={styles.noData}>No shuttles registered for this school.</Text>
                 ) : (
                   getShuttlesForSchool(school.id).map((shuttle) => (
                     <View key={shuttle.reg_number} style={styles.itemRow}>
-                      <Icon name="directions-bus" size={18} color="#4CAF50" />
-                      <Text style={styles.itemText}>
-                        {shuttle.reg_number} (Capacity: {shuttle.capacity})
-                      </Text>
-                    </View>
-                  ))
-                )}
-
-                {/* Drivers Section */}
-                <Text style={styles.sectionTitle}>Drivers</Text>
-                {getDriversForSchool(school.id).length === 0 ? (
-                  <Text style={styles.noData}>No drivers assigned</Text>
-                ) : (
-                  getDriversForSchool(school.id).map((driver) => (
-                    <View key={driver.id} style={styles.itemRow}>
-                      <Icon name="person" size={18} color="#FF9500" />
-                      <Text style={styles.itemText}>
-                        {driver.user.first_name} {driver.user.last_name} ({driver.driver_code})
-                      </Text>
-                    </View>
-                  ))
-                )}
-
-                {/* Students Section */}
-                <Text style={styles.sectionTitle}>Students</Text>
-                {getStudentsForSchool(school.id).length === 0 ? (
-                  <Text style={styles.noData}>No students enrolled</Text>
-                ) : (
-                  getStudentsForSchool(school.id).map((student) => (
-                    <View key={student.id} style={styles.studentItem}>
-                      <Icon name="school" size={18} color="#9C27B0" />
-                      <View style={styles.studentInfo}>
-                        <Text style={styles.studentName}>{student.student_name}</Text>
-                        <Text style={styles.studentClass}>Class: {student.class_level}</Text>
-                        {student.parent && (
-                          <>
-                            <Text style={styles.parentText}>Parent: {student.parent.parent_name}</Text>
-                            <Text style={styles.parentText}>Phone: {student.parent.parent_phone}</Text>
-                          </>
+                      <Icon name="directions-bus" size={18} color="#4CAF50" style={{ marginRight: 10 }} />
+                      <View style={styles.shuttleInfo}>
+                        <Text style={styles.itemTextPrimary}>
+                          {shuttle.reg_number}
+                        </Text>
+                        <Text style={styles.itemTextSecondary}>
+                          Capacity: {shuttle.capacity} | Status: {shuttle.is_active ? "Active" : "Inactive"}
+                        </Text>
+                        {shuttle.driver_code && (
+                          <Text style={styles.itemTextSecondary}>Driver Code: {shuttle.driver_code}</Text>
                         )}
+                      </View>
+                      <View style={styles.actionIcons}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            console.log("Editing shuttle:", shuttle.reg_number); // Debug
+                            setCurrentStep("edit_shuttle");
+                            setShuttleForm({
+                              reg_number: shuttle.reg_number,
+                              capacity: shuttle.capacity,
+                              is_active: shuttle.is_active,
+                            });
+                            // Make sure school.id is passed correctly
+                            setSelectedSchoolId(shuttle.school?.id); // Use the ID from the shuttle data
+                            setModalVisible(true);
+                          }}
+                        >
+                          <Icon name="edit" size={20} color="#007AFF" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteShuttle(shuttle.reg_number)} // Simplified call
+                        >
+                          <Icon name="delete" size={20} color="#dc3545" />
+                        </TouchableOpacity>
                       </View>
                     </View>
                   ))
                 )}
 
-                {/* Action Buttons */}
+                {/* Action Buttons for the School */}
                 <View style={styles.actionButtons}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => {
+                      console.log("Opening add shuttle modal for school:", school.id); // Debug
                       setCurrentStep("shuttle");
+                      setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
+                      setSelectedSchoolId(school.id); // Set the ID of the current school
                       setModalVisible(true);
                     }}
                   >
+                    <Icon name="add" size={16} color="white" style={{ marginRight: 5 }} />
                     <Text style={styles.buttonText}>Add Shuttle</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => {
-                      setCurrentStep("driver");
+                      console.log("Opening edit school modal:", school.id); // Debug
+                      setCurrentStep("edit_school");
+                      setSchoolForm({
+                        id: school.id,
+                        school_name: school.school_name,
+                        school_address: school.school_address || "",
+                        latitude: school.latitude ? school.latitude.toString() : "",
+                        longitude: school.longitude ? school.longitude.toString() : "",
+                      });
                       setModalVisible(true);
                     }}
                   >
-                    <Text style={styles.buttonText}>Add Driver</Text>
+                    <Icon name="edit" size={16} color="white" style={{ marginRight: 5 }} />
+                    <Text style={styles.buttonText}>Edit School</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.actionButton}
-                    onPress={() => {
-                      setCurrentStep("student");
-                      setModalVisible(true);
-                    }}
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: "#dc3545" }]}
+                    onPress={() => handleDeleteSchool(school.id)} // Simplified call
                   >
-                    <Text style={styles.buttonText}>Add Student</Text>
+                    <Icon name="delete" size={16} color="white" style={{ marginRight: 5 }} />
+                    <Text style={styles.buttonText}>Delete School</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -340,149 +572,134 @@ const AdminScreen = () => {
         )}
       />
 
-      {/* Add Data Modal */}
+      {/* Modal for Add/Edit */}
       <Modal
         visible={modalVisible}
         animationType="slide"
+        transparent={true} // Make modal background semi-transparent
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            {/* School Form */}
-            {currentStep === "school" && (
-              <>
-                <Text style={styles.modalTitle}>Add New School</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="School Name*"
-                  value={newSchool.school_name}
-                  onChangeText={(text) => setNewSchool({...newSchool, school_name: text})}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Address"
-                  value={newSchool.school_address}
-                  onChangeText={(text) => setNewSchool({...newSchool, school_address: text})}
-                />
-                <TouchableOpacity 
-                  style={[styles.button, styles.primaryButton]}
-                  onPress={handleAddSchool}
-                >
-                  <Text style={styles.buttonText}>Save School</Text>
-                </TouchableOpacity>
-              </>
-            )}
+        <View style={styles.modalOverlay}> {/* Added overlay */}
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {currentStep === "school" && "Add New School"}
+                {currentStep === "edit_school" && "Edit School"}
+                {currentStep === "shuttle" && "Add New Shuttle"}
+                {currentStep === "edit_shuttle" && "Edit Shuttle"}
+              </Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Icon name="close" size={24} color="#6c757d" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalContent}>
+              {/* School Form */}
+              {(currentStep === "school" || currentStep === "edit_school") && (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholder="Enter school name (e.g., Sunshine Academy)"
+                    value={schoolForm.school_name}
+                    onChangeText={(text) => setSchoolForm({ ...schoolForm, school_name: text })}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholder="Enter address (e.g., 123 Kampala Rd)"
+                    value={schoolForm.school_address}
+                    onChangeText={(text) => setSchoolForm({ ...schoolForm, school_address: text })}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholder="Latitude (e.g., 0.3476, optional)"
+                    keyboardType="numeric"
+                    value={schoolForm.latitude}
+                    onChangeText={(text) => setSchoolForm({ ...schoolForm, latitude: text.replace(/[^0-9.-]/g, '') })} // Basic numeric input cleaning
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholder="Longitude (e.g., 32.5825, optional)"
+                    keyboardType="numeric"
+                    value={schoolForm.longitude}
+                    onChangeText={(text) => setSchoolForm({ ...schoolForm, longitude: text.replace(/[^0-9.-]/g, '') })} // Basic numeric input cleaning
+                  />
+                  <TouchableOpacity
+                    style={[styles.button, styles.primaryButton]}
+                    onPress={currentStep === "school" ? handleAddSchool : handleUpdateSchool}
+                  >
+                    <Text style={styles.buttonText}>
+                      {currentStep === "school" ? "Save School" : "Update School"}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
-            {/* Shuttle Form */}
-            {currentStep === "shuttle" && (
-              <>
-                <Text style={styles.modalTitle}>Add New Shuttle</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Registration Number*"
-                  value={newShuttle.reg_number}
-                  onChangeText={(text) => setNewShuttle({...newShuttle, reg_number: text})}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Capacity"
-                  keyboardType="numeric"
-                  value={newShuttle.capacity.toString()}
-                  onChangeText={(text) => setNewShuttle({...newShuttle, capacity: parseInt(text) || 20})}
-                />
-                <TouchableOpacity 
-                  style={[styles.button, styles.primaryButton]}
-                  onPress={() => Alert.alert("Info", "Shuttle addition would be implemented here")}
-                >
-                  <Text style={styles.buttonText}>Save Shuttle</Text>
-                </TouchableOpacity>
-              </>
-            )}
+              {/* Shuttle Form */}
+              {(currentStep === "shuttle" || currentStep === "edit_shuttle") && (
+                <>
+                  <Text style={styles.inputLabel}>
+                    School: {schools.find((s) => s.id === selectedSchoolId)?.school_name || "N/A"}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholder="Enter reg. number (e.g., UAB123X)"
+                    value={shuttleForm.reg_number}
+                    onChangeText={(text) => setShuttleForm({ ...shuttleForm, reg_number: text.toUpperCase() })} // Example: Auto-uppercase
+                    editable={currentStep === "shuttle"} // Only editable when adding
+                    autoCapitalize="characters"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholderTextColor="#6c757d" // Added placeholder text color
+                    placeholder="Capacity (e.g., 5)"
+                    keyboardType="numeric"
+                    value={shuttleForm.capacity.toString()}
+                    onChangeText={(text) =>
+                      setShuttleForm({ ...shuttleForm, capacity: parseInt(text.replace(/[^0-9]/g, '')) || 5 }) // Clean input
+                    }
+                  />
+                  <View style={styles.switchContainer}>
+                    <Text style={styles.switchLabel}>Active Status:</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.switch,
+                        { backgroundColor: shuttleForm.is_active ? "#28a745" : "#dc3545" },
+                      ]}
+                      onPress={() => setShuttleForm({ ...shuttleForm, is_active: !shuttleForm.is_active })}
+                    >
+                      <Text style={styles.switchText}>{shuttleForm.is_active ? "Active" : "Inactive"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.button, styles.primaryButton]}
+                    onPress={currentStep === "shuttle" ? handleAddShuttle : handleUpdateShuttle}
+                  >
+                    <Text style={styles.buttonText}>
+                      {currentStep === "shuttle" ? "Save Shuttle" : "Update Shuttle"}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
-            {/* Driver Form */}
-            {currentStep === "driver" && (
-              <>
-                <Text style={styles.modalTitle}>Add New Driver</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="First Name*"
-                  value={newDriver.first_name}
-                  onChangeText={(text) => setNewDriver({...newDriver, first_name: text})}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Last Name*"
-                  value={newDriver.last_name}
-                  onChangeText={(text) => setNewDriver({...newDriver, last_name: text})}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email*"
-                  keyboardType="email-address"
-                  value={newDriver.email}
-                  onChangeText={(text) => setNewDriver({...newDriver, email: text})}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Driver Code*"
-                  value={newDriver.driver_code}
-                  onChangeText={(text) => setNewDriver({...newDriver, driver_code: text})}
-                />
-                <TouchableOpacity 
-                  style={[styles.button, styles.primaryButton]}
-                  onPress={() => Alert.alert("Info", "Driver addition would be implemented here")}
-                >
-                  <Text style={styles.buttonText}>Save Driver</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* Student Form */}
-            {currentStep === "student" && (
-              <>
-                <Text style={styles.modalTitle}>Add New Student</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Student Name*"
-                  value={newStudent.student_name}
-                  onChangeText={(text) => setNewStudent({...newStudent, student_name: text})}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Class Level*"
-                  value={newStudent.class_level}
-                  onChangeText={(text) => setNewStudent({...newStudent, class_level: text})}
-                />
-                <Text style={styles.sectionTitle}>Parent Information</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Parent Name*"
-                  value={newStudent.parent_name}
-                  onChangeText={(text) => setNewStudent({...newStudent, parent_name: text})}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Parent Phone*"
-                  keyboardType="phone-pad"
-                  value={newStudent.parent_phone}
-                  onChangeText={(text) => setNewStudent({...newStudent, parent_phone: text})}
-                />
-                <TouchableOpacity 
-                  style={[styles.button, styles.primaryButton]}
-                  onPress={() => Alert.alert("Info", "Student addition would be implemented here")}
-                >
-                  <Text style={styles.buttonText}>Save Student</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            <TouchableOpacity 
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-          </ScrollView>
+              {/* Cancel button moved outside conditional blocks */}
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => {
+                  console.log("Closing modal"); // Debug
+                  setModalVisible(false);
+                  setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
+                  setShuttleForm({ reg_number: "", capacity: 5, is_active: true });
+                  setSelectedSchoolId(null);
+                }}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -492,1081 +709,257 @@ const AdminScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   header: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: "#007AFF",
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: '#0056b3', // Slightly darker shade for depth
   },
   headerText: {
-    color: 'white',
+    color: "white",
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   addButton: {
-    flexDirection: 'row',
-    backgroundColor: '#28a745',
-    padding: 8,
+    flexDirection: "row",
+    backgroundColor: "#28a745",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 5,
-    alignItems: 'center',
+    alignItems: "center",
+    elevation: 2, // Add subtle shadow
   },
   addButtonText: {
-    color: 'white',
+    color: "white",
     marginLeft: 5,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   listContent: {
     padding: 10,
   },
   card: {
-    backgroundColor: 'white',
-    marginBottom: 10,
+    backgroundColor: "white",
+    marginBottom: 12, // Increased spacing
     borderRadius: 8,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowOpacity: 0.15, // Slightly reduced opacity
+    shadowRadius: 3, // Slightly increased radius
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
   },
   schoolName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#212529',
+    fontSize: 17, // Slightly larger
+    fontWeight: "600",
+    color: "#343a40", // Darker grey
   },
   cardContent: {
     padding: 15,
-    paddingTop: 0,
-    borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
   },
   schoolAddress: {
-    color: '#6c757d',
-    marginBottom: 10,
+    color: "#495057", // Slightly darker grey
+    marginBottom: 5, // Reduced margin
+    fontSize: 14,
+  },
+  schoolCoords: {
+    color: "#6c757d",
+    marginBottom: 15, // Increased margin before shuttles section
+    fontSize: 13,
+    fontStyle: 'italic',
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
+    fontSize: 15, // Slightly larger
+    fontWeight: "bold", // Bolder
+    color: "#007AFF", // Use theme color
     marginTop: 10,
-    marginBottom: 5,
+    marginBottom: 10, // Increased margin
+    borderBottomWidth: 1,
+    borderBottomColor: '#dee2e6',
+    paddingBottom: 5,
   },
   itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10, // Increased padding
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f5',
+    borderBottomColor: "#f1f3f5",
   },
-  itemText: {
-    marginLeft: 10,
-    color: '#212529',
-  },
-  studentItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f5',
-  },
-  studentInfo: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  studentName: {
+  itemTextPrimary: { // Style for main shuttle info like Reg Number
+    color: '#343a40',
+    fontSize: 15,
     fontWeight: '500',
-    color: '#212529',
+    marginBottom: 2,
   },
-  studentClass: {
-    fontSize: 12,
+  itemTextSecondary: { // Style for secondary info like capacity, status
     color: '#6c757d',
+    fontSize: 13,
   },
-  parentText: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginTop: 2,
+  shuttleInfo: {
+    flex: 1,
+    // marginLeft: 10, // Removed margin, handled by Icon marginRight
+  },
+  actionIcons: {
+    flexDirection: "row",
+    gap: 18, // Increased gap
   },
   noData: {
-    color: '#6c757d',
-    fontStyle: 'italic',
-    marginVertical: 5,
+    color: "#6c757d",
+    fontStyle: "italic",
+    marginVertical: 10, // Increased margin
+    textAlign: 'center',
+    fontSize: 14,
   },
   actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 15,
+    flexDirection: "row",
+    justifyContent: "space-around", // Better distribution
+    marginTop: 20, // Increased margin
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+    paddingTop: 15,
   },
   actionButton: {
-    flex: 1,
-    backgroundColor: '#e9ecef',
-    padding: 8,
-    borderRadius: 5,
-    marginHorizontal: 5,
+    flexDirection: 'row', // To align icon and text
     alignItems: 'center',
+    justifyContent: 'center',
+    // flex: 1, // Removed flex: 1 for potentially different button sizes
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 15, // Adjusted padding
+    borderRadius: 5,
+    elevation: 1,
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "500",
+    fontSize: 14, // Standardized font size
   },
   center: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
+    backgroundColor: '#f8f9fa',
   },
   error: {
-    color: '#dc3545',
+    color: "#dc3545",
     fontSize: 16,
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   retryButton: {
-    backgroundColor: '#007AFF',
-    padding: 10,
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 5,
+    elevation: 2,
   },
   retryText: {
-    color: 'white',
-    fontWeight: '500',
+    color: "white",
+    fontWeight: "500",
   },
-  modalContainer: {
+  modalOverlay: { // Added style for semi-transparent background
     flex: 1,
-    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent black
+  },
+  modalContainer: { // Adjusted modal container style
+    width: '90%', // Set a width
+    maxHeight: '85%', // Set a max height
+    backgroundColor: "white",
+    borderRadius: 10, // Rounded corners
+    overflow: 'hidden', // Ensure content stays within bounds
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    backgroundColor: '#f8f9fa', // Light header background
   },
   modalContent: {
     padding: 20,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#212529',
+    fontSize: 18, // Adjusted size
+    fontWeight: "600", // Adjusted weight
+    color: "#343a40",
+  },
+  inputLabel: {
+    fontSize: 15, // Adjusted size
+    color: "#495057",
+    marginBottom: 8, // Adjusted margin
+    fontWeight: '500',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ced4da',
+    borderColor: "#ced4da",
     borderRadius: 5,
     padding: 12,
     marginBottom: 15,
-    backgroundColor: 'white',
+    backgroundColor: "white",
+    fontSize: 15,
+  },
+  switchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: 'space-between', // Align items nicely
+    marginBottom: 20, // Increased margin
+    paddingVertical: 5,
+  },
+  switchLabel: {
+    fontSize: 16,
+    color: "#495057",
+    fontWeight: '500',
+  },
+  switch: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 15, // Make it more pill-like
+    minWidth: 80, // Ensure minimum width
+    alignItems: 'center',
+  },
+  switchText: {
+    color: "white",
+    fontWeight: "bold", // Bolder text
   },
   button: {
-    padding: 15,
-    borderRadius: 5,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14, // Slightly adjusted padding
+    borderRadius: 5,
     marginBottom: 10,
+    elevation: 1,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
   },
   cancelButton: {
-    backgroundColor: '#dc3545',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: '500',
+    backgroundColor: "#6c757d", // Grey cancel button
   },
 });
 
 export default AdminScreen;
-
-
-// import React, { useState, useEffect } from "react";
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   TouchableOpacity,
-//   TextInput,
-//   FlatList,
-//   ScrollView,
-//   Modal,
-//   Alert,
-//   ActivityIndicator,
-// } from "react-native";
-// import Icon from "react-native-vector-icons/MaterialIcons";
-
-// const API_BASE = 'http://10.10.161.245:8000';
-
-// // Types matching your Django models
-// type School = {
-//   id: string;
-//   school_name: string;
-//   school_address?: string;
-//   latitude?: number;
-//   longitude?: number;
-// };
-
-// type Shuttle = {
-//   id: string;
-//   reg_number: string;
-//   school: string;
-//   capacity: number;
-//   is_active: boolean;
-// };
-
-// type Driver = {
-//   id: string;
-//   user: {
-//     first_name: string;
-//     last_name: string;
-//     email: string;
-//   };
-//   driver_code: string;
-//   school: string;
-//   current_shuttle?: string;
-// };
-
-// type Student = {
-//   id: string;
-//   student_name: string;
-//   class_level: string;
-//   school: string;
-//   parent?: {
-//     parent_name: string;
-//     parent_phone: string;
-//   };
-//   shuttle?: string;
-// };
-
-// const AdminScreen = () => {
-//   // Data states
-//   const [schools, setSchools] = useState<School[]>([]);
-//   const [shuttles, setShuttles] = useState<Shuttle[]>([]);
-//   const [drivers, setDrivers] = useState<Driver[]>([]);
-//   const [students, setStudents] = useState<Student[]>([]);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState<string | null>(null);
-  
-//   // UI states
-//   const [modalVisible, setModalVisible] = useState(false);
-//   const [currentStep, setCurrentStep] = useState<"school" | "shuttle" | "driver" | "student">("school");
-//   const [expandedSchoolId, setExpandedSchoolId] = useState<string | null>(null);
-//   const [editingItem, setEditingItem] = useState<any>(null);
-
-//   // Form states
-//   const [formData, setFormData] = useState({
-//     school: { school_name: "", school_address: "" },
-//     shuttle: { reg_number: "", capacity: 20, is_active: true, school: "" },
-//     driver: { 
-//       first_name: "", 
-//       last_name: "", 
-//       email: "", 
-//       driver_code: "",
-//       school: ""
-//     },
-//     student: { 
-//       student_name: "", 
-//       class_level: "primary_one",
-//       parent_name: "",
-//       parent_phone: "",
-//       school: ""
-//     }
-//   });
-
-//   // Fetch all data from backend
-//   const fetchData = async () => {
-//     try {
-//       setLoading(true);
-//       setError(null);
-
-//       const [schoolsRes, shuttlesRes, driversRes, studentsRes] = await Promise.all([
-//         fetch(`${API_BASE}/api/schools/`),
-//         fetch(`${API_BASE}/api/shuttles/`),
-//         fetch(`${API_BASE}/api/drivers/`),
-//         fetch(`${API_BASE}/api/students/`),
-//       ]);
-
-//       if (!schoolsRes.ok || !shuttlesRes.ok || !driversRes.ok || !studentsRes.ok) {
-//         throw new Error('Failed to fetch data');
-//       }
-
-//       const [schoolsData, shuttlesData, driversData, studentsData] = await Promise.all([
-//         schoolsRes.json(),
-//         shuttlesRes.json(),
-//         driversRes.json(),
-//         studentsRes.json(),
-//       ]);
-
-//       setSchools(schoolsData);
-//       setShuttles(shuttlesData);
-//       // setDrivers(driversData);
-//       // setStudents(studentsData);
-
-//     } catch (err) {
-//       setError(error.message);
-//       Alert.alert("Error", "Failed to fetch data");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // Load data on first render and when modal closes
-//   useEffect(() => {
-//     fetchData();
-//   }, []);
-
-//   // Handle form input changes
-//   const handleInputChange = (field: string, value: string, formType: string) => {
-//     setFormData(prev => ({
-//       ...prev,
-//       [formType]: {
-//         ...prev[formType],
-//         [field]: value
-//       }
-//     }));
-//   };
-
-//   // Set form data when editing
-//   const setupEditForm = (item: any, type: string) => {
-//     setEditingItem(item);
-//     setCurrentStep(type as any);
-    
-//     if (type === 'school') {
-//       setFormData(prev => ({
-//         ...prev,
-//         school: {
-//           school_name: item.school_name,
-//           school_address: item.school_address || ""
-//         }
-//       }));
-//     } else if (type === 'shuttle') {
-//       setFormData(prev => ({
-//         ...prev,
-//         shuttle: {
-//           reg_number: item.reg_number,
-//           capacity: item.capacity,
-//           is_active: item.is_active,
-//           school: item.school
-//         }
-//       }));
-//     } else if (type === 'driver') {
-//       setFormData(prev => ({
-//         ...prev,
-//         driver: {
-//           first_name: item.user.first_name,
-//           last_name: item.user.last_name,
-//           email: item.user.email,
-//           driver_code: item.driver_code,
-//           school: item.school
-//         }
-//       }));
-//     } else if (type === 'student') {
-//       setFormData(prev => ({
-//         ...prev,
-//         student: {
-//           student_name: item.student_name,
-//           class_level: item.class_level,
-//           parent_name: item.parent?.parent_name || "",
-//           parent_phone: item.parent?.parent_phone || "",
-//           school: item.school
-//         }
-//       }));
-//     }
-    
-//     setModalVisible(true);
-//   };
-
-//   // Submit form data
-//   const handleSubmit = async () => {
-//     try {
-//       let url = '';
-//       let method = 'POST';
-//       let body = {};
-//       let successMessage = '';
-
-//       if (currentStep === 'school') {
-//         url = `${API_BASE}/api/schools/`;
-//         body = formData.school;
-//         successMessage = 'School saved successfully';
-        
-//         if (editingItem) {
-//           url += `${editingItem.id}/`;
-//           method = 'PUT';
-//         }
-//       } 
-//       else if (currentStep === 'shuttle') {
-//         url = `${API_BASE}/api/shuttles/`;
-//         body = formData.shuttle;
-//         successMessage = 'Shuttle saved successfully';
-        
-//         if (editingItem) {
-//           url += `${editingItem.id}/`;
-//           method = 'PUT';
-//         }
-//       }
-//       else if (currentStep === 'driver') {
-//         url = `${API_BASE}/api/drivers/`;
-//         body = {
-//           user: {
-//             first_name: formData.driver.first_name,
-//             last_name: formData.driver.last_name,
-//             email: formData.driver.email,
-//           },
-//           driver_code: formData.driver.driver_code,
-//           school: formData.driver.school
-//         };
-//         successMessage = 'Driver saved successfully';
-        
-//         if (editingItem) {
-//           url += `${editingItem.id}/`;
-//           method = 'PUT';
-//         }
-//       }
-//       else if (currentStep === 'student') {
-//         url = `${API_BASE}/api/students/`;
-//         body = {
-//           student_name: formData.student.student_name,
-//           class_level: formData.student.class_level,
-//           parent: {
-//             parent_name: formData.student.parent_name,
-//             parent_phone: formData.student.parent_phone
-//           },
-//           school: formData.student.school
-//         };
-//         successMessage = 'Student saved successfully';
-        
-//         if (editingItem) {
-//           url += `${editingItem.id}/`;
-//           method = 'PUT';
-//         }
-//       }
-
-//       const response = await fetch(url, {
-//         method,
-//         headers: {
-//           'Accept': 'application/json',
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(body),
-//       });
-
-//       if (!response.ok) {
-//         const errorText = await response.text();
-//         throw new Error(errorText || 'Failed to save data');
-//       }
-
-//       Alert.alert("Success", successMessage);
-//       setModalVisible(false);
-//       setEditingItem(null);
-//       fetchData(); // Refresh data
-
-//     } catch (err) {
-//       Alert.alert("Error", err.message || "Failed to save data");
-//     }
-//   };
-
-//   // Delete item
-//   const handleDelete = async (id: string, type: string) => {
-//     try {
-//       const url = `${API_BASE}/api/${type}/${id}/`;
-//       const response = await fetch(url, {
-//         method: 'DELETE',
-//       });
-
-//       if (!response.ok) {
-//         throw new Error('Failed to delete');
-//       }
-
-//       Alert.alert("Success", `${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully`);
-//       fetchData(); // Refresh data
-
-//     } catch (err) {
-//       Alert.alert("Error", err.message || "Failed to delete");
-//     }
-//   };
-
-//   // Toggle school expansion
-//   const toggleSchool = (schoolId: string) => {
-//     setExpandedSchoolId(expandedSchoolId === schoolId ? null : schoolId);
-//   };
-
-//   // Filter data by school
-//   const getSchoolData = (schoolId: string) => {
-//     return {
-//       shuttles: shuttles.filter(s => s.school === schoolId),
-//       drivers: drivers.filter(d => d.school === schoolId),
-//       students: students.filter(s => s.school === schoolId),
-//     };
-//   };
-
-//   if (loading) {
-//     return (
-//       <View style={styles.center}>
-//         <ActivityIndicator size="large" color="#007AFF" />
-//         <Text>Loading data...</Text>
-//       </View>
-//     );
-//   }
-
-//   if (error) {
-//     return (
-//       <View style={styles.center}>
-//         <Text style={styles.error}>{error}</Text>
-//         <TouchableOpacity 
-//           style={styles.retryButton}
-//           onPress={fetchData}
-//         >
-//           <Text style={styles.retryText}>Retry</Text>
-//         </TouchableOpacity>
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <View style={styles.container}>
-//       {/* Header */}
-//       <View style={styles.header}>
-//         <Text style={styles.headerText}>School Admin</Text>
-//         <TouchableOpacity 
-//           style={styles.addButton}
-//           onPress={() => {
-//             setCurrentStep("school");
-//             setEditingItem(null);
-//             setFormData({
-//               ...formData,
-//               school: { school_name: "", school_address: "" }
-//             });
-//             setModalVisible(true);
-//           }}
-//         >
-//           <Icon name="add" size={20} color="white" />
-//           <Text style={styles.addButtonText}>Add School</Text>
-//         </TouchableOpacity>
-//       </View>
-
-//       {/* Schools List */}
-//       <FlatList
-//         data={schools}
-//         keyExtractor={(item) => item.id}
-//         contentContainerStyle={styles.listContent}
-//         renderItem={({ item: school }) => {
-//           const { shuttles: schoolShuttles, drivers: schoolDrivers, students: schoolStudents } = getSchoolData(school.id);
-//           const isExpanded = expandedSchoolId === school.id;
-
-//           return (
-//             <View style={styles.card}>
-//               {/* School Header */}
-//               <TouchableOpacity 
-//                 style={styles.cardHeader}
-//                 onPress={() => toggleSchool(school.id)}
-//               >
-//                 <Text style={styles.schoolName}>{school.school_name}</Text>
-//                 <Icon 
-//                   name={isExpanded ? "expand-less" : "expand-more"} 
-//                   size={24} 
-//                   color="#007AFF" 
-//                 />
-//               </TouchableOpacity>
-
-//               {/* Expanded Content */}
-//               {isExpanded && (
-//                 <View style={styles.cardContent}>
-//                   {/* School Information */}
-//                   <View style={styles.section}>
-//                     <View style={styles.sectionHeader}>
-//                       <Text style={styles.sectionTitle}>School Information</Text>
-//                       <TouchableOpacity onPress={() => setupEditForm(school, 'school')}>
-//                         <Icon name="edit" size={18} color="#007AFF" />
-//                       </TouchableOpacity>
-//                     </View>
-//                     <Text style={styles.infoText}>Address: {school.school_address || 'Not specified'}</Text>
-//                     {school.latitude && school.longitude && (
-//                       <Text style={styles.infoText}>
-//                         Location: {school.latitude}, {school.longitude}
-//                       </Text>
-//                     )}
-//                   </View>
-
-//                   {/* Shuttles Section */}
-//                   <View style={styles.section}>
-//                     <View style={styles.sectionHeader}>
-//                       <Text style={styles.sectionTitle}>Shuttles ({schoolShuttles.length})</Text>
-//                       <TouchableOpacity onPress={() => {
-//                         setCurrentStep("shuttle");
-//                         setEditingItem(null);
-//                         setFormData({
-//                           ...formData,
-//                           shuttle: { 
-//                             reg_number: "", 
-//                             capacity: 20, 
-//                             is_active: true,
-//                             school: school.id 
-//                           }
-//                         });
-//                         setModalVisible(true);
-//                       }}>
-//                         <Icon name="add" size={18} color="#4CAF50" />
-//                       </TouchableOpacity>
-//                     </View>
-                    
-//                     {schoolShuttles.length > 0 ? (
-//                       schoolShuttles.map(shuttle => (
-//                         <View key={shuttle.id} style={styles.item}>
-//                           <View style={styles.itemContent}>
-//                             <Icon name="directions-bus" size={18} color="#4CAF50" />
-//                             <View style={styles.itemDetails}>
-//                               <Text style={styles.itemText}>{shuttle.reg_number}</Text>
-//                               <Text style={styles.subText}>Capacity: {shuttle.capacity}</Text>
-//                               <Text style={styles.subText}>
-//                                 Status: {shuttle.is_active ? 'Active' : 'Inactive'}
-//                               </Text>
-//                             </View>
-//                           </View>
-//                           <View style={styles.itemActions}>
-//                             <TouchableOpacity onPress={() => setupEditForm(shuttle, 'shuttle')}>
-//                               <Icon name="edit" size={18} color="#FF9500" />
-//                             </TouchableOpacity>
-//                             <TouchableOpacity onPress={() => handleDelete(shuttle.id, 'shuttles')}>
-//                               <Icon name="delete" size={18} color="#dc3545" />
-//                             </TouchableOpacity>
-//                           </View>
-//                         </View>
-//                       ))
-//                     ) : (
-//                       <Text style={styles.noData}>No shuttles registered</Text>
-//                     )}
-//                   </View>
-
-//                   {/* Drivers Section */}
-//                   <View style={styles.section}>
-//                     <View style={styles.sectionHeader}>
-//                       <Text style={styles.sectionTitle}>Drivers ({schoolDrivers.length})</Text>
-//                       <TouchableOpacity onPress={() => {
-//                         setCurrentStep("driver");
-//                         setEditingItem(null);
-//                         setFormData({
-//                           ...formData,
-//                           driver: { 
-//                             first_name: "", 
-//                             last_name: "", 
-//                             email: "", 
-//                             driver_code: "",
-//                             school: school.id
-//                           }
-//                         });
-//                         setModalVisible(true);
-//                       }}>
-//                         <Icon name="add" size={18} color="#FF9500" />
-//                       </TouchableOpacity>
-//                     </View>
-                    
-//                     {schoolDrivers.length > 0 ? (
-//                       schoolDrivers.map(driver => (
-//                         <View key={driver.id} style={styles.item}>
-//                           <View style={styles.itemContent}>
-//                             <Icon name="person" size={18} color="#FF9500" />
-//                             <View style={styles.itemDetails}>
-//                               <Text style={styles.itemText}>
-//                                 {driver.user.first_name} {driver.user.last_name}
-//                               </Text>
-//                               <Text style={styles.subText}>Code: {driver.driver_code}</Text>
-//                               <Text style={styles.subText}>Email: {driver.user.email}</Text>
-//                               {driver.current_shuttle && (
-//                                 <Text style={styles.subText}>Assigned Shuttle: {driver.current_shuttle}</Text>
-//                               )}
-//                             </View>
-//                           </View>
-//                           <View style={styles.itemActions}>
-//                             <TouchableOpacity onPress={() => setupEditForm(driver, 'driver')}>
-//                               <Icon name="edit" size={18} color="#007AFF" />
-//                             </TouchableOpacity>
-//                             <TouchableOpacity onPress={() => handleDelete(driver.id, 'drivers')}>
-//                               <Icon name="delete" size={18} color="#dc3545" />
-//                             </TouchableOpacity>
-//                           </View>
-//                         </View>
-//                       ))
-//                     ) : (
-//                       <Text style={styles.noData}>No drivers assigned</Text>
-//                     )}
-//                   </View>
-
-//                   {/* Students Section */}
-//                   <View style={styles.section}>
-//                     <View style={styles.sectionHeader}>
-//                       <Text style={styles.sectionTitle}>Students ({schoolStudents.length})</Text>
-//                       <TouchableOpacity onPress={() => {
-//                         setCurrentStep("student");
-//                         setEditingItem(null);
-//                         setFormData({
-//                           ...formData,
-//                           student: { 
-//                             student_name: "", 
-//                             class_level: "primary_one",
-//                             parent_name: "",
-//                             parent_phone: "",
-//                             school: school.id
-//                           }
-//                         });
-//                         setModalVisible(true);
-//                       }}>
-//                         <Icon name="add" size={18} color="#9C27B0" />
-//                       </TouchableOpacity>
-//                     </View>
-                    
-//                     {schoolStudents.length > 0 ? (
-//                       schoolStudents.map(student => (
-//                         <View key={student.id} style={styles.item}>
-//                           <View style={styles.itemContent}>
-//                             <Icon name="school" size={18} color="#9C27B0" />
-//                             <View style={styles.itemDetails}>
-//                               <Text style={styles.itemText}>{student.student_name}</Text>
-//                               <Text style={styles.subText}>Class: {student.class_level}</Text>
-//                               {student.parent && (
-//                                 <>
-//                                   <Text style={styles.subText}>Parent: {student.parent.parent_name}</Text>
-//                                   <Text style={styles.subText}>Phone: {student.parent.parent_phone}</Text>
-//                                 </>
-//                               )}
-//                               {student.shuttle && (
-//                                 <Text style={styles.subText}>Shuttle: {student.shuttle}</Text>
-//                               )}
-//                             </View>
-//                           </View>
-//                           <View style={styles.itemActions}>
-//                             <TouchableOpacity onPress={() => setupEditForm(student, 'student')}>
-//                               <Icon name="edit" size={18} color="#007AFF" />
-//                             </TouchableOpacity>
-//                             <TouchableOpacity onPress={() => handleDelete(student.id, 'students')}>
-//                               <Icon name="delete" size={18} color="#dc3545" />
-//                             </TouchableOpacity>
-//                           </View>
-//                         </View>
-//                       ))
-//                     ) : (
-//                       <Text style={styles.noData}>No students enrolled</Text>
-//                     )}
-//                   </View>
-//                 </View>
-//               )}
-//             </View>
-//           );
-//         }}
-//       />
-
-//       {/* Add/Edit Data Modal */}
-//       <Modal
-//         visible={modalVisible}
-//         animationType="slide"
-//         onRequestClose={() => {
-//           setModalVisible(false);
-//           setEditingItem(null);
-//         }}
-//       >
-//         <View style={styles.modalContainer}>
-//           <ScrollView contentContainerStyle={styles.modalContent}>
-//             <Text style={styles.modalTitle}>
-//               {editingItem ? 'Edit' : 'Add New'} {currentStep.charAt(0).toUpperCase() + currentStep.slice(1)}
-//             </Text>
-
-//             {/* School Form */}
-//             {currentStep === "school" && (
-//               <>
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="School Name*"
-//                   value={formData.school.school_name}
-//                   onChangeText={(text) => handleInputChange('school_name', text, 'school')}
-//                 />
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Address"
-//                   value={formData.school.school_address}
-//                   onChangeText={(text) => handleInputChange('school_address', text, 'school')}
-//                 />
-//               </>
-//             )}
-
-//             {/* Shuttle Form */}
-//             {currentStep === "shuttle" && (
-//               <>
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Registration Number*"
-//                   value={formData.shuttle.reg_number}
-//                   onChangeText={(text) => handleInputChange('reg_number', text, 'shuttle')}
-//                 />
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Capacity"
-//                   keyboardType="numeric"
-//                   value={formData.shuttle.capacity.toString()}
-//                   onChangeText={(text) => handleInputChange('capacity', text, 'shuttle')}
-//                 />
-//               </>
-//             )}
-
-//             {/* Driver Form */}
-//             {currentStep === "driver" && (
-//               <>
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="First Name*"
-//                   value={formData.driver.first_name}
-//                   onChangeText={(text) => handleInputChange('first_name', text, 'driver')}
-//                 />
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Last Name*"
-//                   value={formData.driver.last_name}
-//                   onChangeText={(text) => handleInputChange('last_name', text, 'driver')}
-//                 />
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Email*"
-//                   keyboardType="email-address"
-//                   value={formData.driver.email}
-//                   onChangeText={(text) => handleInputChange('email', text, 'driver')}
-//                 />
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Driver Code*"
-//                   value={formData.driver.driver_code}
-//                   onChangeText={(text) => handleInputChange('driver_code', text, 'driver')}
-//                 />
-//               </>
-//             )}
-
-//             {/* Student Form */}
-//             {currentStep === "student" && (
-//               <>
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Student Name*"
-//                   value={formData.student.student_name}
-//                   onChangeText={(text) => handleInputChange('student_name', text, 'student')}
-//                 />
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Class Level*"
-//                   value={formData.student.class_level}
-//                   onChangeText={(text) => handleInputChange('class_level', text, 'student')}
-//                 />
-//                 <Text style={styles.sectionTitle}>Parent Information</Text>
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Parent Name*"
-//                   value={formData.student.parent_name}
-//                   onChangeText={(text) => handleInputChange('parent_name', text, 'student')}
-//                 />
-//                 <TextInput
-//                   style={styles.input}
-//                   placeholder="Parent Phone*"
-//                   keyboardType="phone-pad"
-//                   value={formData.student.parent_phone}
-//                   onChangeText={(text) => handleInputChange('parent_phone', text, 'student')}
-//                 />
-//               </>
-//             )}
-
-//             <View style={styles.modalButtons}>
-//               <TouchableOpacity 
-//                 style={[styles.button, styles.cancelButton]}
-//                 onPress={() => {
-//                   setModalVisible(false);
-//                   setEditingItem(null);
-//                 }}
-//               >
-//                 <Text style={styles.buttonText}>Cancel</Text>
-//               </TouchableOpacity>
-//               <TouchableOpacity 
-//                 style={[styles.button, styles.primaryButton]}
-//                 onPress={handleSubmit}
-//               >
-//                 <Text style={styles.buttonText}>{editingItem ? 'Update' : 'Save'}</Text>
-//               </TouchableOpacity>
-//             </View>
-//           </ScrollView>
-//         </View>
-//       </Modal>
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#f8f9fa',
-//   },
-//   header: {
-//     backgroundColor: '#007AFF',
-//     padding: 15,
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//   },
-//   headerText: {
-//     color: 'white',
-//     fontSize: 20,
-//     fontWeight: 'bold',
-//   },
-//   addButton: {
-//     flexDirection: 'row',
-//     backgroundColor: '#28a745',
-//     padding: 8,
-//     borderRadius: 5,
-//     alignItems: 'center',
-//   },
-//   addButtonText: {
-//     color: 'white',
-//     marginLeft: 5,
-//     fontWeight: '500',
-//   },
-//   listContent: {
-//     padding: 10,
-//   },
-//   card: {
-//     backgroundColor: 'white',
-//     marginBottom: 10,
-//     borderRadius: 8,
-//     elevation: 2,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 1 },
-//     shadowOpacity: 0.2,
-//     shadowRadius: 2,
-//   },
-//   cardHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     padding: 15,
-//   },
-//   schoolName: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: '#212529',
-//   },
-//   cardContent: {
-//     padding: 15,
-//     paddingTop: 0,
-//     borderTopWidth: 1,
-//     borderTopColor: '#e9ecef',
-//   },
-//   section: {
-//     marginBottom: 15,
-//   },
-//   sectionHeader: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     marginBottom: 5,
-//   },
-//   sectionTitle: {
-//     fontSize: 14,
-//     fontWeight: '600',
-//     color: '#495057',
-//   },
-//   infoText: {
-//     fontSize: 14,
-//     color: '#555',
-//     marginBottom: 5,
-//   },
-//   item: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     paddingVertical: 10,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#f5f5f5',
-//   },
-//   itemContent: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     flex: 1,
-//   },
-//   itemDetails: {
-//     marginLeft: 10,
-//     flex: 1,
-//   },
-//   itemText: {
-//     fontSize: 14,
-//     color: '#333',
-//     fontWeight: '500',
-//   },
-//   subText: {
-//     fontSize: 12,
-//     color: '#666',
-//     marginTop: 2,
-//   },
-//   itemActions: {
-//     flexDirection: 'row',
-//     gap: 10,
-//   },
-//   noData: {
-//     color: '#999',
-//     fontStyle: 'italic',
-//     marginVertical: 5,
-//   },
-//   center: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     padding: 20,
-//   },
-//   error: {
-//     color: '#dc3545',
-//     fontSize: 16,
-//     marginBottom: 20,
-//     textAlign: 'center',
-//   },
-//   retryButton: {
-//     backgroundColor: '#007AFF',
-//     padding: 10,
-//     borderRadius: 5,
-//   },
-//   retryText: {
-//     color: 'white',
-//     fontWeight: '500',
-//   },
-//   modalContainer: {
-//     flex: 1,
-//     backgroundColor: 'white',
-//   },
-//   modalContent: {
-//     padding: 20,
-//   },
-//   modalTitle: {
-//     fontSize: 20,
-//     fontWeight: 'bold',
-//     marginBottom: 20,
-//     color: '#212529',
-//     textAlign: 'center',
-//   },
-//   input: {
-//     borderWidth: 1,
-//     borderColor: '#ced4da',
-//     borderRadius: 5,
-//     padding: 12,
-//     marginBottom: 15,
-//     backgroundColor: 'white',
-//   },
-//   modalButtons: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     marginTop: 10,
-//   },
-//   button: {
-//     flex: 1,
-//     padding: 15,
-//     borderRadius: 5,
-//     alignItems: 'center',
-//     marginHorizontal: 5,
-//   },
-//   primaryButton: {
-//     backgroundColor: '#007AFF',
-//   },
-//   cancelButton: {
-//     backgroundColor: '#dc3545',
-//   },
-//   buttonText: {
-//     color: 'white',
-//     fontWeight: '500',
-//   },
-// });
-
-// export default AdminScreen;
