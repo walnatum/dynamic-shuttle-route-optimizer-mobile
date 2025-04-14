@@ -29,6 +29,8 @@ export type RootStackParamList = {
   ParentTrackingScreen: { driverCode: string };
 };
 
+const API_BASE_URL = 'http://10.10.168.239:8000';
+
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const mapRef = useRef<MapView>(null);
@@ -152,9 +154,6 @@ const HomeScreen = () => {
     requestLocationPermission();
   }, []);
 
-  const goToTest = () => {
-    navigation.navigate("Test");
-  };
 
   const goToTraffic = () => {
     navigation.navigate("TrafficScreen");
@@ -577,7 +576,7 @@ const HomeScreen = () => {
   
     try {
       // Create driver
-      const driverResponse = await fetch(`${Config.API_BASE_URL}/api/drivers/`, {
+      const driverResponse = await fetch(`${API_BASE_URL}/api/drivers/`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
@@ -597,7 +596,7 @@ const HomeScreen = () => {
       console.log("Driver created with code:", driverData);
   
       // Assign shuttle
-      const shuttleResponse = await fetch(`${Config.API_BASE_URL}/api/assign-shuttle/`, {
+      const shuttleResponse = await fetch(`${API_BASE_URL}/api/assign-shuttle/`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
@@ -629,7 +628,7 @@ const HomeScreen = () => {
         if (!permissionGranted) {
           setLocationStatus("No permission, using mock location");
           const mockLocation = { latitude: 0.3476, longitude: 32.5825, driver_code: driverCode };
-          fetch(`${Config.API_BASE_URL}/api/driver/update-location/`, {
+          fetch(`${API_BASE_URL}/api/driver/update-location/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(mockLocation),
@@ -691,7 +690,7 @@ const HomeScreen = () => {
   
       const sendLocationUpdate = async (latitude: number, longitude: number, driverCode: string) => {
         try {
-          const res = await fetch(`${Config.API_BASE_URL}/api/driver/update-location/`, {
+          const res = await fetch(`${API_BASE_URL}/api/driver/update-location/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ latitude, longitude, driver_code: driverCode }),
@@ -955,9 +954,7 @@ const HomeScreen = () => {
           <TouchableOpacity style={styles.floatingButton}>
             <Text style={styles.buttonText}>Crash</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.floatingButton} onPress={goToTest}>
-            <Text style={styles.buttonText}>Test</Text>
-          </TouchableOpacity>
+
         </View>
       </Animated.View>
 
