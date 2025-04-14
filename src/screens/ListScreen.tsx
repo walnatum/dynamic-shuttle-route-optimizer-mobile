@@ -32,6 +32,8 @@ type RootStackParamList = {
 
 type ListScreenRouteProp = RouteProp<RootStackParamList, 'ListScreen'>;
 
+const API_BASE_URL = 'http://10.10.168.239:8000';
+
 const ListScreen = () => {
   //const navigation = useNavigation();
   const route = useRoute<ListScreenRouteProp>();
@@ -84,7 +86,7 @@ const ListScreen = () => {
 
     try {
       console.log(`Fetching student with code: ${newStudentCode}`);
-      const fetchResponse = await fetch(`${Config.API_BASE_URL}/api/students/${newStudentCode}/`, {
+      const fetchResponse = await fetch(`${API_BASE_URL}/api/students/${newStudentCode}/`, {
         method: "GET",
         headers: {
           "Accept": "application/json",
@@ -102,7 +104,7 @@ const ListScreen = () => {
       console.log("Fetched student:", studentData);
 
       // Update onboarded status on the backend
-      const updateResponse = await fetch(`${Config.API_BASE_URL}/api/students/${newStudentCode}/`, {
+      const updateResponse = await fetch(`${API_BASE_URL}/api/students/${newStudentCode}/`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",
@@ -150,7 +152,7 @@ const removeStudent = async (id: string, name: string) => {
 
   try {
     // Fetch the active ShuttleAssignment for this student
-    const assignmentsResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/`, {
+    const assignmentsResponse = await fetch(`${API_BASE_URL}/api/shuttle-assignments/`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
@@ -175,7 +177,7 @@ const removeStudent = async (id: string, name: string) => {
 
     // Update the ShuttleAssignment to set offboarded_at
     const offboardTime = new Date().toISOString();
-    const updateResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/${activeAssignment.id}/`, {
+    const updateResponse = await fetch(`${API_BASE_URL}/api/shuttle-assignments/${activeAssignment.id}/`, {
       method: "PATCH",
       headers: {
         "Accept": "application/json",
