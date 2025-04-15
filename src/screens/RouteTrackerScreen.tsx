@@ -17,7 +17,7 @@ interface Shuttle {
   reg_number: string;
   current_latitude: number | null;
   current_longitude: number | null;
-  driver_code: string | null; // Added
+  driver_code: string | null;
 }
 
 interface Student {
@@ -30,6 +30,8 @@ interface Student {
   shuttle: Shuttle;
   latitude?: number;
   longitude?: number;
+  point_latitude?: number;
+  point_longitude?: number;
 }
 
 const RouteTrackerScreen = () => {
@@ -40,12 +42,12 @@ const RouteTrackerScreen = () => {
   const [studentCode, setStudentCode] = useState("");
   const [student, setStudent] = useState<Student | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [studentLocation, setStudentLocation] = useState<{ latitude: number; longitude: number }[]>([]);
   const [shuttleLocation, setShuttleLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number; longitude: number }[]>([]);
   const [eta, setEta] = useState<string>("Calculating...");
   const [shuttleName, setShuttleName] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
+  const [showRoute, setShowRoute] = useState(false);
 
   const defaultLocation = {
     latitude: 0.3476,
@@ -84,57 +86,124 @@ const RouteTrackerScreen = () => {
     requestLocationPermission();
   }, []);
 
-  // Fetch shuttle tracking data if student is onboarded
-  const fetchTrackingData = async (regNumber: string) => {
+  // Updated function to display shuttle location
+  const updateShuttleDisplay = async (studentData: Student) => {
     try {
-      const response = await fetch(`${Config.API_BASE_URL}/api/shuttle-tracking/`, {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reg_number: regNumber }),
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Tracking error:", errorData.error);
-        throw new Error(errorData.error || "Failed to fetch tracking data");
-      }
-  
-      const data = await response.json();
-      console.log("Tracking data:", JSON.stringify(data, null, 2));
-      setShuttleLocation(data.current_location);
-      setRouteCoordinates(data.planned_route);
-      setEta(data.eta_to_destination);
-      setShuttleName(data.shuttle.reg_number);
-      setDestination(data.destination);
-  
-      if (data.current_location && studentLocation.length > 0) {
-        mapRef.current?.fitToCoordinates([...studentLocation, data.current_location], {
-          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        });
-      } else if (data.current_location) {
+      // Log shuttle data for debugging
+      console.log("Shuttle data:", JSON.stringify(studentData.shuttle, null, 2));
+
+      // Convert coordinates to numbers
+      const latitude = Number(studentData.shuttle.current_latitude);
+      const longitude = Number(studentData.shuttle.current_longitude);
+
+      // Validate shuttle coordinates
+      if (
+        latitude != null &&
+        longitude != null &&
+        !isNaN(latitude) &&
+        !isNaN(longitude)
+      ) {
+        const shuttleLoc = { latitude, longitude };
+        setShuttleLocation(shuttleLoc);
+        setShuttleName(studentData.shuttle.reg_number || "Unknown");
+
+        // Center map on shuttle location
         mapRef.current?.animateToRegion({
-          ...data.current_location,
+          latitude: shuttleLoc.latitude,
+          longitude: shuttleLoc.longitude,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         });
-      } else if (studentLocation.length > 0) {
-        mapRef.current?.animateToRegion({
-          ...studentLocation[0],
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+      } else {
+        console.warn(
+          "Invalid shuttle coordinates after conversion:",
+          `latitude: ${latitude}, longitude: ${longitude}`
+        );
+        setShuttleLocation(null);
+        setEta("Shuttle location unavailable");
+        Alert.alert(
+          "Error",
+          "Shuttle location data is invalid. Please ensure the shuttle has valid coordinates."
+        );
+        return;
       }
-    } catch (error) {
-      console.error("Tracking error:", error.message);
-      setEta(`Tracking Error: ${error.message}`);
-      Alert.alert("Tracking Failed", error.message);
+
+      // Set destination to pickup point
+      const pickupLatitude = Number(studentData.point_latitude);
+      const pickupLongitude = Number(studentData.point_longitude);
+
+      if (
+        pickupLatitude != null &&
+        pickupLongitude != null &&
+        !isNaN(pickupLatitude) &&
+        !isNaN(pickupLongitude)
+      ) {
+        setDestination(
+          `Pickup Point: (${pickupLatitude}, ${pickupLongitude})`
+        );
+      } else {
+        setDestination("Pickup point unavailable");
+      }
+    } catch (error: any) {
+      console.error("Shuttle display error:", error.message);
+      setEta("Error displaying shuttle");
+      Alert.alert("Error", error.message || "Failed to display shuttle location");
     }
   };
 
-  
+  // Calculate route and ETA when Route button is tapped
+  const calculateRouteAndETA = async () => {
+    if (!student || !shuttleLocation || !student.point_latitude || !student.point_longitude) {
+      Alert.alert("Error", "Missing shuttle or pickup point coordinates.");
+      return;
+    }
+
+    try {
+      // Placeholder: Google Maps Directions API
+      const origin = `${shuttleLocation.latitude},${shuttleLocation.longitude}`;
+      const destination = `${student.point_latitude},${student.point_longitude}`;
+      const apiKey = Config.GOOGLE_MAPS_API_KEY;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status !== "OK") {
+        throw new Error(data.error_message || "Failed to calculate route");
+      }
+
+      // Extract route coordinates
+      const points = data.routes[0]?.legs[0]?.steps.map((step: any) => ({
+        latitude: step.start_location.lat,
+        longitude: step.start_location.lng,
+      }));
+      if (points) {
+        setRouteCoordinates(points);
+      } else {
+        setRouteCoordinates([]);
+      }
+
+      // Extract ETA
+      const duration = data.routes[0]?.legs[0]?.duration?.text || "Unknown";
+      setEta(`Current Location to Pickup Point ETA: ${duration}`);
+
+      // Fit map to show route
+      if (points && points.length > 0) {
+        mapRef.current?.fitToCoordinates(
+          [shuttleLocation, ...points, { latitude: Number(student.point_latitude), longitude: Number(student.point_longitude) }],
+          {
+            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+            animated: true,
+          }
+        );
+      }
+    } catch (error: any) {
+      console.error("Route calculation error:", error.message);
+      setEta("Error calculating route");
+      Alert.alert("Error", error.message || "Failed to calculate route and ETA");
+    }
+  };
+
   // Fetch student details
   const fetchStudent = async () => {
     if (!studentCode.trim()) {
@@ -160,7 +229,7 @@ const RouteTrackerScreen = () => {
       }
 
       const studentData = await fetchResponse.json();
-      console.log("Fetched student:", studentData);
+      console.log("Fetched student:", JSON.stringify(studentData, null, 2));
 
       const fetchedStudent: Student = {
         id: studentData.id,
@@ -173,35 +242,26 @@ const RouteTrackerScreen = () => {
           reg_number: studentData.shuttle.reg_number,
           current_latitude: studentData.shuttle.current_latitude,
           current_longitude: studentData.shuttle.current_longitude,
-          driver_code: studentData.shuttle.driver_code, // Now included
+          driver_code: studentData.shuttle.driver_code,
         },
         latitude: studentData.latitude,
         longitude: studentData.longitude,
+        point_latitude: studentData.point_latitude,
+        point_longitude: studentData.point_longitude,
       };
 
       setStudent(fetchedStudent);
 
-      // If we have student location data, add it to the map
-      if (fetchedStudent.latitude && fetchedStudent.longitude) {
-        const studentLoc = {
-          latitude: fetchedStudent.latitude,
-          longitude: fetchedStudent.longitude,
-        };
-        setStudentLocation([studentLoc]);
-        mapRef.current?.animateToRegion({
-          ...studentLoc,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+      // Set destination and display shuttle
+      if (fetchedStudent.onboarded) {
+        await updateShuttleDisplay(fetchedStudent);
+      } else {
+        setDestination("Student not onboarded");
+        setShuttleLocation(null);
       }
 
-      // If student is onboarded, fetch shuttle tracking data
-      if (fetchedStudent.onboarded && fetchedStudent.shuttle.driver_code) {
-        fetchTrackingData(fetchedStudent.shuttle.driver_code);
-        // Poll every 10 seconds
-        const interval = setInterval(() => fetchTrackingData(fetchedStudent.shuttle.driver_code), 10000);
-        return () => clearInterval(interval);
-      }
+      // Reset showRoute
+      setShowRoute(false);
     } catch (error: any) {
       console.error("Error fetching student:", error.message);
       Alert.alert("Error", error.message || "Failed to fetch student. Check the code or network.");
@@ -223,14 +283,20 @@ const RouteTrackerScreen = () => {
   const resetInputs = () => {
     setSchoolNameId("");
     setStudentCode("");
-    setStudentLocation([]);
     setStudent(null);
     setShuttleLocation(null);
     setRouteCoordinates([]);
     setEta("Calculating...");
     setShuttleName("");
     setDestination("");
+    setShowRoute(false);
     mapRef.current?.animateToRegion(defaultLocation);
+  };
+
+  // Handle Route button click
+  const handleShowRoute = async () => {
+    setShowRoute(true);
+    await calculateRouteAndETA();
   };
 
   return (
@@ -242,34 +308,25 @@ const RouteTrackerScreen = () => {
         provider={PROVIDER_GOOGLE}
         initialRegion={defaultLocation}
       >
-        {studentLocation.length > 0 && (
-          <Marker
-            coordinate={studentLocation[0]}
-            title={student?.name || "Student"}
-            description={student?.school || "School"}
-            pinColor="green"
-          >
-            <Callout>
-              <View>
-                <Text style={styles.calloutTitle}>{student?.name}</Text>
-                <Text>{student?.school}</Text>
-                <Text>Code: {student?.student_code}</Text>
-              </View>
-            </Callout>
-          </Marker>
-        )}
         {shuttleLocation && (
           <Marker coordinate={shuttleLocation} title={shuttleName} pinColor="blue">
             <Callout>
               <View>
                 <Text style={styles.calloutTitle}>{shuttleName}</Text>
+                <Text>Student: {student?.name || "Unknown"}</Text>
                 <Text>Destination: {destination}</Text>
-                <Text>ETA: {eta}</Text>
               </View>
             </Callout>
           </Marker>
         )}
-        {routeCoordinates.length > 0 && (
+        {student?.point_latitude && student?.point_longitude && (
+          <Marker
+            coordinate={{ latitude: Number(student.point_latitude), longitude: Number(student.point_longitude) }}
+            title="Pickup Point"
+            pinColor="green"
+          />
+        )}
+        {showRoute && routeCoordinates.length > 0 && (
           <Polyline coordinates={routeCoordinates} strokeWidth={4} strokeColor="#007AFF" />
         )}
       </MapView>
@@ -324,9 +381,13 @@ const RouteTrackerScreen = () => {
           </View>
           {student.onboarded ? (
             <View style={styles.statusOverlay}>
-              <Text style={styles.statusText}>
-                {shuttleName} to {destination} - ETA: {eta}
-              </Text>
+              {showRoute ? (
+                <Text style={styles.statusText}>{eta}</Text>
+              ) : (
+                <TouchableOpacity style={styles.routeButton} onPress={handleShowRoute}>
+                  <Text style={styles.routeButtonText}>Route</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View style={styles.statusOverlay}>
@@ -354,6 +415,7 @@ const RouteTrackerScreen = () => {
   );
 };
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -515,6 +577,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusText: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  routeButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  routeButtonText: {
+    color: "white",
     fontSize: 16,
     fontWeight: "bold",
   },

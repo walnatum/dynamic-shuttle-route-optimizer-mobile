@@ -18,8 +18,6 @@ type RootStackParamList = {
   AssistantScreen: undefined;
 };
 
-// Use your actual backend IP address here
-const API_BASE_URL = 'http://10.10.168.239:8000';
 
 const AssistantScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -70,8 +68,8 @@ const AssistantScreen = () => {
     // Verify code with backend
     try {
       console.log("Verifying code:", code);
-      console.log("URL:", `${API_BASE_URL}/api/verify-driver-code/`);
-      const response = await fetch(`${API_BASE_URL}/api/verify-driver-code/`, {
+      console.log("URL:", `${Config.API_BASE_URL}/api/verify-driver-code/`);
+      const response = await fetch(`${Config.API_BASE_URL}/api/verify-driver-code/`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
