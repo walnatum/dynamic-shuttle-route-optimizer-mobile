@@ -125,7 +125,7 @@ const AdminScreen = () => {
     student_code: "",
     // school_id and class_level will be pre-filled when opening modal
     parent_id: "", // ID of selected parent
-    shuttle_reg_number: "", // Reg number of selected shuttle
+    shuttle_id: "", 
     onboarded: false,
   });
 
@@ -221,16 +221,141 @@ const AdminScreen = () => {
   }, [fetchData]); // Use fetchData in dependency array
 
   // --- CRUD Operations ---
-  // School CRUD (Keep existing logic - trimmed for brevity)
-  const handleAddSchool = async () => { /* ... */ };
-  const handleUpdateSchool = async () => { /* ... */ };
-  const handleDeleteSchool = async (schoolId: string) => { /* ... */ };
+  // School CRUD 
+  const handleAddSchool = async () => {
+    if (!schoolForm.school_name.trim()) {
+      Alert.alert("Error", "School name is required");
+      return;
+    }
+
+    try {
+      const body: any = {
+        school_name: schoolForm.school_name,
+        school_address: schoolForm.school_address || null,
+      };
+      if (schoolForm.latitude.trim()) body.latitude = parseFloat(schoolForm.latitude);
+      if (schoolForm.longitude.trim()) body.longitude = parseFloat(schoolForm.longitude);
+
+      console.log("Adding school with body:", body);
+      const response = await fetch(`${Config.API_BASE_URL}/api/schools/`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error occurred" }));
+        console.error("Add school failed:", response.status, errorData);
+        throw new Error(`Failed to add school: ${errorData.detail || JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      console.log("School added:", data);
+      setSchools([...schools, data]);
+      setModalVisible(false);
+      setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
+      Alert.alert("Success", "School added successfully");
+    } catch (err: any) {
+      console.error("Add school error:", err);
+      Alert.alert("Error", err.message || "Failed to add school");
+    }
+  };
+
+
+   const handleUpdateSchool = async () => {
+    if (!schoolForm.school_name.trim()) {
+      Alert.alert("Error", "School name is required");
+      return;
+    }
+    if (!schoolForm.id) {
+      Alert.alert("Error", "School ID is missing for update.");
+      return;
+    }
+
+    try {
+      const body: any = {
+        school_name: schoolForm.school_name,
+        school_address: schoolForm.school_address || null,
+      };
+      if (schoolForm.latitude.trim()) body.latitude = parseFloat(schoolForm.latitude);
+      if (schoolForm.longitude.trim()) body.longitude = parseFloat(schoolForm.longitude);
+
+      console.log(`Updating school ${schoolForm.id} with body:`, body);
+      const response = await fetch(`${Config.API_BASE_URL}/api/schools/${schoolForm.id}/`, {
+        method: "PUT",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error occurred" }));
+        console.error("Update school failed:", response.status, errorData);
+        throw new Error(`Failed to update school: ${errorData.detail || JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      console.log("School updated:", data);
+      setSchools(schools.map((s) => (s.id === data.id ? data : s)));
+      setModalVisible(false);
+      setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
+      Alert.alert("Success", "School updated successfully");
+    } catch (err: any) {
+      console.error("Update school error:", err);
+      Alert.alert("Error", err.message || "Failed to update school");
+    }
+  };
+  
+  
+  const handleDeleteSchool = async (schoolId: string) => {
+    Alert.alert(
+      "Confirm Delete",
+      `Are you sure you want to delete this school and all its associated students?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("Deleting school:", schoolId);
+              const response = await fetch(`${Config.API_BASE_URL}/api/schools/${schoolId}/`, {
+                method: "DELETE",
+                headers: {
+                  Accept: "application/json",
+                },
+              });
+
+              if (!response.ok && response.status !== 204) {
+                const errorText = await response.text();
+                console.error("Delete school failed:", response.status, errorText);
+                throw new Error(`Failed to delete school: ${errorText}`);
+              }
+
+              console.log("School deleted:", schoolId);
+              await fetchData();
+              Alert.alert("Success", "School deleted successfully");
+            } catch (err: any) {
+              console.error("Delete school error:", err);
+              Alert.alert("Error", err.message || "Failed to delete school");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Need Shuttle CRUD handlers if shuttle management is done here
   // const handleAddShuttle = async () => { /* ... */ };
   // const handleUpdateShuttle = async () => { /* ... */ };
   // const handleDeleteShuttle = async (regNumber: string) => { /* ... */ };
 
-  // Student Add Handler
+  // Student CRUD 
   const handleAddStudent = async () => {
     // Get school_id and class_level from the context where modal was opened
     if (!selectedSchoolId || !selectedClassLevel) {
@@ -243,7 +368,7 @@ const AdminScreen = () => {
     if (!studentForm.student_code.trim()) { Alert.alert("Error", "Student code is required"); return; }
     // Parent is optional
     // Shuttle required only if onboarded
-    if (studentForm.onboarded && !studentForm.shuttle_reg_number) {
+    if (studentForm.onboarded && !studentForm.shuttle_id) {
       Alert.alert("Error", "Please select a shuttle if the student is onboarded.");
       return;
     }
@@ -261,8 +386,8 @@ const AdminScreen = () => {
       if (studentForm.parent_id) {
         body.parent = studentForm.parent_id; // Assumes backend expects 'parent' field with ID
       }
-      if (studentForm.onboarded && studentForm.shuttle_reg_number) {
-        body.shuttle = studentForm.shuttle_reg_number; // Assumes backend expects 'shuttle' field with reg_number
+      if (studentForm.onboarded && studentForm.shuttle_id) {
+        body.shuttle = studentForm.shuttle_id; // Assumes backend expects 'shuttle' field with reg_number
       } else {
         // Ensure shuttle is null if not onboarded or not selected
         body.shuttle = null;
@@ -311,13 +436,32 @@ const AdminScreen = () => {
     }
   };
 
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      const response = await fetch(`${Config.API_BASE_URL}/api/students/${studentId}/`, {
+        method: "DELETE",
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+  
+      await fetchData(); // Refresh list
+      Alert.alert("Success", "Student deleted successfully.");
+    } catch (err: any) {
+      console.error("Delete student error:", err);
+      Alert.alert("Error", err.message || "Failed to delete student.");
+    }
+  };
+  
+
   // Function to reset student form state
   const resetStudentForm = () => {
       setStudentForm({
         student_name: "",
         student_code: "",
         parent_id: "",
-        shuttle_reg_number: "",
+        shuttle_id: "",
         onboarded: false,
       });
   };
@@ -431,19 +575,6 @@ const AdminScreen = () => {
                                     // Show Add Student Button if no students
                                     <View style={styles.emptyClassContainer}>
                                         <Text style={[styles.noData, { textAlign: 'left'}]}>No students currently in this class.</Text>
-                                        <TouchableOpacity
-                                           style={styles.inlineAddButton}
-                                           onPress={() => {
-                                              setCurrentStep("student");
-                                              resetStudentForm(); // Reset form fields
-                                              setSelectedSchoolId(school.id); // Set context
-                                              setSelectedClassLevel(classLevel); // Set context
-                                              setModalVisible(true);
-                                           }}
-                                        >
-                                           <Icon name="person-add" size={16} color="#6f42c1" />
-                                           <Text style={[styles.inlineAddButtonText, { color: '#6f42c1' }]}>Add Student to {CLASS_CHOICES_MAP[classLevel] || classLevel}</Text>
-                                        </TouchableOpacity>
                                      </View>
                                   ) : (
                                     // List Students
@@ -458,8 +589,10 @@ const AdminScreen = () => {
                                                 </Text>
                                                 <View style={styles.actionIcons}>
                                                     <TouchableOpacity onPress={() => {/* Edit Student */}}><Icon name="edit" size={18} color="#007AFF" /></TouchableOpacity>
-                                                    <TouchableOpacity onPress={() => {/* Delete Student */}}><Icon name="delete" size={18} color="#dc3545" /></TouchableOpacity>
-                                                 </View>
+                                                    <TouchableOpacity onPress={() => handleDeleteStudent(student.id)}>
+                                                      <Icon name="delete" size={18} color="#dc3545" />
+                                                    </TouchableOpacity>
+                                                </View>
                                             </View>
                                             {/* Details */}
                                             <View style={styles.studentItemDetails}>
@@ -480,6 +613,23 @@ const AdminScreen = () => {
                                         </View>
                                      ))
                                   )}
+
+                                  {/* ✅ Always show Add Student button */}
+                                  <TouchableOpacity
+                                    style={styles.inlineAddButton}
+                                    onPress={() => {
+                                      setCurrentStep("student");
+                                      resetStudentForm();
+                                      setSelectedSchoolId(school.id);
+                                      setSelectedClassLevel(classLevel);
+                                      setModalVisible(true);
+                                    }}
+                                  >
+                                    <Icon name="person-add" size={16} color="#6f42c1" />
+                                    <Text style={[styles.inlineAddButtonText, { color: '#6f42c1' }]}>
+                                      Add Student to {CLASS_CHOICES_MAP[classLevel] || classLevel}
+                                    </Text>
+                                  </TouchableOpacity>
                                </View>
                             )}
                          </View>
@@ -575,11 +725,11 @@ const AdminScreen = () => {
                           <Text style={styles.inputLabel}>Student Name*</Text>
                           <TextInput style={styles.input} placeholder="Enter full name" value={studentForm.student_name} onChangeText={(t) => setStudentForm(f => ({ ...f, student_name: t }))} />
                           {/* Student Code Input */}
-                          <Text style={styles.inputLabel}>Student Code* (Unique)</Text>
+                          <Text style={styles.inputLabel}>Student Code*</Text>
                           <TextInput style={styles.input} placeholder="Enter unique student code" value={studentForm.student_code} onChangeText={(t) => setStudentForm(f => ({ ...f, student_code: t.toUpperCase() }))} autoCapitalize="characters" />
 
                           {/* Parent Picker */}
-                          <Text style={styles.inputLabel}>Parent (optional):</Text>
+                          <Text style={styles.inputLabel}>Parent</Text>
                           {/* Apply pickerContainer style here */}
                           <View style={styles.pickerContainer}>
                               <Picker
@@ -600,7 +750,7 @@ const AdminScreen = () => {
                              <Text style={styles.switchLabel}>Onboarded:</Text>
                              <TouchableOpacity
                                 style={[styles.switch, { backgroundColor: studentForm.onboarded ? "#28a745" : "#dc3545" }]}
-                                onPress={() => setStudentForm(f => ({ ...f, onboarded: !f.onboarded, shuttle_reg_number: !f.onboarded ? f.shuttle_reg_number : "" }))} // Clear shuttle if switching to No
+                                onPress={() => setStudentForm(f => ({ ...f, onboarded: !f.onboarded, shuttle_id: !f.onboarded ? f.shuttle_id : "" }))} // Clear shuttle if switching to No
                              >
                                 <Text style={styles.switchText}>{studentForm.onboarded ? "Yes" : "No"}</Text>
                              </TouchableOpacity>
@@ -613,8 +763,8 @@ const AdminScreen = () => {
                                 {/* Apply pickerContainer style here */}
                                 <View style={styles.pickerContainer}>
                                     <Picker
-                                        selectedValue={studentForm.shuttle_reg_number}
-                                        onValueChange={(itemValue) => setStudentForm(f => ({ ...f, shuttle_reg_number: itemValue as string })) }
+                                        selectedValue={studentForm.shuttle_id}
+                                        onValueChange={(itemValue) => setStudentForm(f => ({ ...f, shuttle_id: itemValue as string })) }
                                         style={styles.pickerStyle} // Applied style
                                         enabled={getShuttlesForSelectedSchool().length > 0} // Disable if no shuttles
                                         prompt="Select Shuttle"
