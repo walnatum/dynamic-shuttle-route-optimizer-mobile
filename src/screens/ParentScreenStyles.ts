@@ -1,3 +1,235 @@
+// import { StyleSheet } from "react-native";
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//   },
+//   map: {
+//     flex: 1,
+//   },
+//   searchContainer: {
+//     position: "absolute",
+//     top: 10,
+//     left: 10,
+//     right: 10,
+//     flexDirection: "row",
+//     alignItems: "center",
+//     backgroundColor: "#fff",
+//     borderRadius: 25,
+//     paddingHorizontal: 10,
+//     elevation: 5,
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//   },
+//   searchInput: {
+//     flex: 1,
+//     height: 50,
+//     fontSize: 16,
+//     color: "#333",
+//     paddingHorizontal: 10,
+//   },
+//   searchImageContainer: {
+//     padding: 10,
+//   },
+//   photoIconContainer: {
+//     padding: 10,
+//   },
+//   routeWiseButton: {
+//     position: "absolute",
+//     left: 10,
+//     backgroundColor: "#007AFF",
+//     paddingVertical: 10,
+//     paddingHorizontal: 20,
+//     borderRadius: 20,
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//     elevation: 5,
+//   },
+//   routeWiseOverlay: {
+//     position: "absolute",
+//     left: 10,
+//     right: 10,
+//     backgroundColor: "transparent",
+//   },
+// cancelIcon: {
+//   position: "absolute",
+//   top: 10,
+//   right: 10,
+//   zIndex: 600, // Higher than overlay but lower than active routeWiseButton
+// },
+//   inputContainer: {
+//     backgroundColor: "rgba(255, 255, 255, 0.9)",
+//     padding: 15,
+//     borderRadius: 10,
+//     elevation: 5,
+//   },
+//   inputWrapper: {
+//     borderRadius: 25,
+//     marginBottom: 10,
+//     overflow: "hidden",
+//     elevation: 5,
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//   },
+//   beautifiedInput: {
+//     height: 50,
+//     paddingHorizontal: 20,
+//     fontSize: 16,
+//     color: "#ffffff",
+//     backgroundColor: "rgba(0, 0, 0, 0.1)",
+//     borderRadius: 25,
+//   },
+//   buttonRow: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     marginTop: 10,
+//   },
+//   functionButton: {
+//     backgroundColor: "#007AFF",
+//     paddingVertical: 10,
+//     paddingHorizontal: 15,
+//     borderRadius: 20,
+//     flex: 1,
+//     marginHorizontal: 5,
+//     alignItems: "center",
+//   },
+//   bottomContainer: {
+//     position: "absolute",
+//     bottom: 80,
+//     left: 10,
+//     right: 10,
+//     alignItems: "center",
+//     backgroundColor: "rgba(255, 255, 255, 0.9)",
+//     padding: 10,
+//     borderRadius: 10,
+//   },
+//   travelTimesPanel: {
+//     width: "100%",
+//     alignItems: "center",
+//   },
+//   timeRow: {
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     width: "100%",
+//     marginBottom: 10,
+//   },
+//   timeList: {
+//     maxHeight: 150,
+//     width: "100%",
+//   },
+//   timeTitle: {
+//     fontWeight: "bold",
+//     marginBottom: 5,
+//     fontSize: 16,
+//   },
+//   timeText: {
+//     marginHorizontal: 5,
+//     fontSize: 14,
+//     marginVertical: 2,
+//   },
+//   floatingButtons: {
+//     position: "absolute",
+//     bottom: 20,
+//     left: 20,
+//     right: 20,
+//     flexDirection: "row",
+//     justifyContent: "space-around",
+//   },
+//   floatingButton: {
+//     backgroundColor: "#007AFF",
+//     paddingVertical: 10,
+//     paddingHorizontal: 15,
+//     borderRadius: 20,
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//     elevation: 5,
+//   },
+//   topRightButton: {
+//     position: "absolute",
+//     right: 10,
+//     backgroundColor: "#FF9500",
+//     paddingVertical: 10,
+//     paddingHorizontal: 15,
+//     borderRadius: 20,
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//     elevation: 5,
+//   },
+//   buttonText: {
+//     color: "white",
+//     fontWeight: "bold",
+//   },
+//   callout: {
+//     width: 200,
+//     padding: 10,
+//     backgroundColor: "rgba(255, 255, 255, 0.9)",
+//     borderRadius: 10,
+//   },
+//   calloutTitle: {
+//     fontWeight: "bold",
+//     fontSize: 16,
+//     marginBottom: 5,
+//   },
+//   calloutDescription: {
+//     fontSize: 12,
+//     color: "#333",
+//   },
+//   overlay: {
+//     position: "absolute",
+//     top: 0,
+//     bottom: 0,
+//     left: 0,
+//     right: 0,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   photoOverlayContent: {
+//     width: "80%",
+//     padding: 20,
+//     borderRadius: 10,
+//     alignItems: "center",
+//   },
+//   overlayTitle: {
+//     fontSize: 20,
+//     fontWeight: "bold",
+//     color: "#fff",
+//     marginBottom: 10,
+//   },
+//   overlayText: {
+//     fontSize: 16,
+//     color: "#fff",
+//     marginBottom: 20,
+//     textAlign: "center",
+//   },
+//   overlayButton: {
+//     backgroundColor: "#007AFF",
+//     paddingVertical: 10,
+//     paddingHorizontal: 20,
+//     borderRadius: 20,
+//     marginBottom: 10,
+//     width: "100%",
+//     alignItems: "center",
+//   },
+//   closeButton: {
+//     marginTop: 10,
+//     padding: 10,
+//   },
+//   closeButtonText: {
+//     color: "#fff",
+//     fontSize: 16,
+//     fontWeight: "bold",
+//   },
+// });
+
+// export default styles;
+
+
 import { StyleSheet } from "react-native";
 
 const styles = StyleSheet.create({
@@ -37,7 +269,6 @@ const styles = StyleSheet.create({
   },
   routeWiseButton: {
     position: "absolute",
-    top: 70,
     left: 10,
     backgroundColor: "#007AFF",
     paddingVertical: 10,
@@ -50,17 +281,15 @@ const styles = StyleSheet.create({
   },
   routeWiseOverlay: {
     position: "absolute",
-    top: 70,
     left: 10,
     right: 10,
     backgroundColor: "transparent",
-    padding: 10,
   },
   cancelIcon: {
     position: "absolute",
     top: 10,
     right: 10,
-    zIndex: 10,
+    zIndex: 600, // Higher than overlay but lower than active routeWiseButton
   },
   inputContainer: {
     backgroundColor: "rgba(255, 255, 255, 0.9)",
