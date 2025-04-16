@@ -10,11 +10,13 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import Config from "react-native-config";
 import { Picker } from "@react-native-picker/picker";
 import MapView, { Marker } from 'react-native-maps';
+import { request, PERMISSIONS } from 'react-native-permissions';
 
 // --- Constants ---
 const CLASS_CHOICES = [
@@ -395,6 +397,14 @@ const AdminScreen = () => {
 
   // --- Shuttle Tracking Logic ---
   const fetchShuttleDetails = async (regNumber: string) => {
+    const permission = Platform.OS === 'ios'
+      ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
+      : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
+    const result = await request(permission);
+    if (result !== 'granted') {
+      Alert.alert("Error", "Location permission denied");
+      return;
+    }
     setShuttleTrackingState((prev) => ({
       ...prev,
       loadingShuttleDetails: true,

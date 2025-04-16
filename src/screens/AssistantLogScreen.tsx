@@ -3,15 +3,21 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'reac
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import LinearGradient from 'react-native-linear-gradient';
-import { RootStackParamList } from '../../App'; 
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-type AdminLogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AssistantLogScreen'>;
+// Assuming RootStackParamList is defined in your App.tsx or a types file
+type RootStackParamList = {
+  AssistantLogScreen: undefined;
+  AdminScreen: undefined;
+  // Add other screens as needed
+};
 
-const AssistantLogScreen = () => {
-  const navigation = useNavigation<AdminLogScreenNavigationProp>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+type AssistantLogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AssistantLogScreen'>;
+
+const AssistantLogScreen: React.FC = () => {
+  const navigation = useNavigation<AssistantLogScreenNavigationProp>();
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -34,7 +40,7 @@ const AssistantLogScreen = () => {
   };
 
   const goBack = () => {
-    console.log("Navigating back...");
+    console.log('Navigating back...');
     try {
       navigation.goBack();
     } catch (error) {
@@ -53,7 +59,7 @@ const AssistantLogScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#1A2526', '#00A3FF']} // Dark blue gradient from previous code
+      colors={['#1A2526', '#00A3FF']}
       style={styles.container}
     >
       <View style={styles.overlay}>
@@ -68,7 +74,7 @@ const AssistantLogScreen = () => {
 
         {/* Icon or Logo (Placeholder) */}
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>👔</Text> {/* Changed to suit emoji */}
+          <Text style={styles.icon}>👔</Text> {/* Wrapped emoji in Text */}
         </View>
 
         {/* Login Fields */}
@@ -180,6 +186,7 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 50,
+    textAlign: 'center',
   },
   inputContainer: {
     width: '80%',
@@ -212,7 +219,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   loginButton: {
-    backgroundColor: '#0047AB', // Cobalt blue for admin login
+    backgroundColor: '#0047AB',
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
