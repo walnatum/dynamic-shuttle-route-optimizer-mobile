@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -23,13 +24,18 @@ import Geolocation from '@react-native-community/geolocation';
 // import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
 import { Linking } from 'react-native';
 
+// Add this import at the top of HomeScreen.tsx with other imports
+import PullUpPanel from "./PullUpPanel";
+
+// Add this import at the top of HomeScreen.tsx with other imports
+import styles from "./HomeScreenStyles"; // Adjust the path if you placed the file in a different 
+
 export type RootStackParamList = {
   HomeScreen: undefined;
   AssistantScreen: undefined;
   ParentTrackingScreen: { driverCode: string };
 };
 
-const API_BASE_URL = 'http://10.10.168.239:8000';
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -61,30 +67,6 @@ const HomeScreen = () => {
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [startMarker, setStartMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<string>("Checking...");
-
-  // const locationOptions: GeoOptions = {
-  //   enableHighAccuracy: true,  // Use GPS and other sensors
-  //   timeout: 20000,           // 20 second timeout
-  //   maximumAge: 10000         // Accept cached locations up to 10 seconds old
-  // };
-
-  // const checkGpsStatus = async () => {
-  //   if (Platform.OS === 'android') {
-  //     const enabled = await PROVIDER_GOOGLE.isGpsEnabled();
-  //     if (!enabled) {
-  //       Alert.alert(
-  //         "GPS Disabled",
-  //         "Please enable GPS for better location accuracy",
-  //         [
-  //           { text: "Cancel" },
-  //           { text: "Open Settings", onPress: () => Linking.openSettings() }
-  //         ]
-  //       );
-  //       return false;
-  //     }
-  //   }
-  //   return true;
-  // };
 
   const openPhotoOverlay = () => {
     setShowPhotoOverlay(true);
@@ -326,44 +308,6 @@ const HomeScreen = () => {
     });
   };
 
-  // const useCurrentLocation = () => {
-  //   if (!permissionGranted) {
-  //     Alert.alert("Error", "Location permission not granted.");
-  //     return;
-  //   }
-
-  //   navigator.geolocation.getCurrentPosition(
-  //     (position) => {
-  //       const { latitude, longitude } = position.coords;
-  //       fetch(
-  //         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg`
-  //       )
-  //         .then((response) => response.json())
-  //         .then((data) => {
-  //           if (data.status === "OK") {
-  //             setStart(data.results[0].formatted_address);
-  //             mapRef.current.animateToRegion({
-  //               latitude,
-  //               longitude,
-  //               latitudeDelta: 0.05,
-  //               longitudeDelta: 0.05,
-  //             });
-  //           } else {
-  //             Alert.alert("Error", "Geocoding failed: " + data.status);
-  //           }
-  //         })
-  //         .catch((error) => {
-  //           console.error("Geocoding error:", error);
-  //           Alert.alert("Error", "Could not geocode location.");
-  //         });
-  //     },
-  //     (error) => {
-  //       console.error("Geolocation error:", error.message);
-  //       Alert.alert("Error", `Could not get current location: ${error.message}`);
-  //     },
-  //     { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-  //   );
-  // };
 
   const useCurrentLocation = () => {
     if (!permissionGranted) {
@@ -933,153 +877,26 @@ const HomeScreen = () => {
         )}
       </View>
 
-      <Animated.View style={[styles.panel, { height: panelHeight }]} {...panResponder.panHandlers}>
-        <View style={styles.panelHandle} />
-        {/* <ScrollView style={styles.panelContent}>
-          <Text style={styles.panelTitle}>Explore Kampala</Text>
-          <Text style={styles.panelText}>Discover popular spots and events!</Text>
-          <Text style={styles.panelText}>Visit markets, malls, and more.</Text>
-          <View style={styles.panelSpacer} />
-        </ScrollView> */}
-        <ScrollView style={styles.panelContent}>
-  <Text style={styles.panelTitle}>Explore Kampala</Text>
-  <Text style={styles.panelSubtitle}>Navigate the city with ease</Text>
 
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Plan Your Journey</Text>
-    <Text style={styles.sectionDescription}>
-      Find the fastest routes to your destination or explore nearby parking options.
-    </Text>
-    <View style={styles.buttonContainer}>
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={() => setShowRouteInput(true)}
-      >
-        <Icon name="directions" size={18} color="#fff" />
-        <Text style={styles.actionButtonText}>Get Directions</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={useCurrentLocation}
-      >
-        <Icon name="my-location" size={18} color="#fff" />
-        <Text style={styles.actionButtonText}>Use My Location</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
+{/* Other components like MapView, searchContainer, etc. */}
+<View style={{ width: "100%", position: "relative" }}>
+  <PullUpPanel
+    selectedTime={selectedTime}
+    showTimeBasedLocations={showTimeBasedLocations}
+    navigateToTimeLocations={navigateToTimeLocations}
+    setShowRouteInput={setShowRouteInput}
+    useCurrentLocation={useCurrentLocation}
+    setShowAssistantOverlay={setShowAssistantOverlay}
+    generatedCode={generatedCode}
+    shuttleRegNumber={shuttleRegNumber}
+    setSearchQuery={setSearchQuery}
+    searchPlaces={searchPlaces}
+    goToWeather={goToWeather}
+    goToTraffic={goToTraffic}
+  />
+</View>
+{/* Other overlays like showPhotoOverlay, showAssistantOverlay, etc. */}
 
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Discover by Time of Day</Text>
-    <Text style={styles.sectionDescription}>
-      Explore top spots in Kampala tailored to your schedule.
-    </Text>
-    <View style={styles.timeButtonContainer}>
-      <TouchableOpacity
-        style={[styles.timeButton, selectedTime === "morning" && styles.timeButtonActive]}
-        onPress={() => showTimeBasedLocations("morning")}
-      >
-        <Text style={[styles.timeButtonText, selectedTime === "morning" && styles.timeButtonTextActive]}>
-          Morning
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.timeButton, selectedTime === "afternoon" && styles.timeButtonActive]}
-        onPress={() => showTimeBasedLocations("afternoon")}
-      >
-        <Text style={[styles.timeButtonText, selectedTime === "afternoon" && styles.timeButtonTextActive]}>
-          Afternoon
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.timeButton, selectedTime === "evening" && styles.timeButtonActive]}
-        onPress={() => showTimeBasedLocations("evening")}
-      >
-        <Text style={[styles.timeButtonText, selectedTime === "evening" && styles.timeButtonTextActive]}>
-          Evening
-        </Text>
-      </TouchableOpacity>
-    </View>
-    {selectedTime && (
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={navigateToTimeLocations}
-      >
-        <Icon name="play-arrow" size={18} color="#fff" />
-        <Text style={styles.actionButtonText}>
-          Start {selectedTime.charAt(0).toUpperCase() + selectedTime.slice(1)} Tour
-        </Text>
-      </TouchableOpacity>
-    )}
-  </View>
-
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Track a Shuttle</Text>
-    <Text style={styles.sectionDescription}>
-      Connect with a shuttle to follow its live location.
-    </Text>
-    <TouchableOpacity
-      style={styles.actionButton}
-      onPress={() => setShowAssistantOverlay(true)}
-    >
-      <Icon name="directions-bus" size={18} color="#fff" />
-      <Text style={styles.actionButtonText}>Sync with Shuttle</Text>
-    </TouchableOpacity>
-    {generatedCode && (
-      <View style={styles.shuttleInfo}>
-        <Text style={styles.shuttleInfoText}>Code: {generatedCode}</Text>
-        {shuttleRegNumber && (
-          <Text style={styles.shuttleInfoText}>Shuttle: {shuttleRegNumber}</Text>
-        )}
-      </View>
-    )}
-  </View>
-
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Top Destinations</Text>
-    <Text style={styles.sectionDescription}>
-      Check out these popular spots in Kampala.
-    </Text>
-    <ScrollView horizontal style={styles.horizontalScroll}>
-      <TouchableOpacity
-        style={styles.placeCard}
-        onPress={() => {
-          setSearchQuery("City Square, Kampala");
-          searchPlaces();
-        }}
-      >
-        <Text style={styles.placeCardText}>City Square</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.placeCard}
-        onPress={() => {
-          setSearchQuery("Lugogo Mall, Kampala");
-          searchPlaces();
-        }}
-      >
-        <Text style={styles.placeCardText}>Lugogo Mall</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.placeCard}
-        onPress={() => {
-          setSearchQuery("Kabalagala, Kampala");
-          searchPlaces();
-        }}
-      >
-        <Text style={styles.placeCardText}>Kabalagala</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  </View>
-
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Tips for Navigating Kampala</Text>
-    <Text style={styles.sectionDescription}>
-      - Use "My Location" for accurate starting points.
-      - Check time-based routes for the best experience.
-      - Sync with a shuttle for real-time tracking.
-      - Search specific names like "Acacia Mall, Kampala" for better results.
-    </Text>
-  </View>
-</ScrollView>
         <View style={styles.floatingButtons}>
           {/* <TouchableOpacity style={styles.floatingButton}>
             <Text style={styles.buttonText}>Weather</Text>
@@ -1095,7 +912,7 @@ const HomeScreen = () => {
           </TouchableOpacity>
 
         </View>
-      </Animated.View>
+
 
 
       {showPhotoOverlay && (
@@ -1168,503 +985,5 @@ const HomeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
-  searchContainer: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    right: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 25,
-    paddingHorizontal: 10,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    fontSize: 16,
-    color: "#333",
-  },
-  searchImageContainer: {
-    padding: 5,
-  },
-  photoOverlayContent: {
-    width: "75%",
-    height: "50%",
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  overlayButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-  },
-  assistantButton: {
-    position: "absolute",
-    top: 60,
-    right: 10,
-    backgroundColor: "#FF9500",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-  },
-  routeWiseButton: {
-    position: "absolute",
-    top: 60,
-    left: 10,
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-  },
-  routeWiseOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    justifyContent: "flex-start",
-    paddingTop: 100,
-    alignItems: "center",
-  },
-  inputContainer: {
-    width: "90%",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-  },
-  inputWrapper: {
-    borderRadius: 25,
-    marginBottom: 10,
-    overflow: "hidden",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-  },
-  beautifiedInput: {
-    height: 50,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    color: "#ffffff",
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
-    borderRadius: 25,
-  },
-  cancelIcon: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    zIndex: 1,
-  },
-  bottomContainer: {
-    position: "absolute",
-    bottom: 120,
-    left: 10,
-    right: 10,
-    alignItems: "center",
-    backgroundColor: "transparent",
-    padding: 10,
-    borderRadius: 10,
-    minHeight: 80,
-    maxHeight: 150,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    marginVertical: 10,
-    flexWrap: "wrap",
-  },
-  functionButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    margin: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-  },
-  travelTimesPanel: {
-    width: "100%",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    padding: 10,
-    borderRadius: 10,
-  },
-  timeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 10,
-    flexWrap: "wrap",
-  },
-  timeList: {
-    maxHeight: 80,
-    width: "100%",
-    marginBottom: 10,
-  },
-  timeTitle: {
-    fontWeight: "bold",
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  timeText: {
-    fontSize: 14,
-    color: "#333",
-    marginVertical: 2,
-  },
-  panel: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.3,
-    overflow: "hidden",
-  },
-  panelHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: "#ccc",
-    borderRadius: 2.5,
-    alignSelf: "center",
-    marginTop: 10,
-  },
-  panelContent: {
-    padding: 15,
-    paddingBottom: 80,
-  },
-  panelTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  panelText: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 10,
-  },
-  panelSpacer: {
-    height: 20,
-  },
-  floatingButtons: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-  },
-  floatingButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  callout: {
-    width: 200,
-    padding: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-  },
-  calloutTitle: {
-    fontWeight: "bold",
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  calloutDescription: {
-    fontSize: 12,
-    color: "#333",
-    marginBottom: 5,
-    minHeight: 40,
-  },
-  timeButtonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-    flexWrap: "wrap",
-  },
-  timeButton: {
-    backgroundColor: "#FF9500",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-    margin: 2,
-  },
-  navigateButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginTop: 10,
-    alignSelf: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-  },
-  overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  overlayContent: {
-    width: 280,
-    height: 280,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "space-around",
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    elevation: 10,
-  },
-  syncContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  syncLabel: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#fff",
-    marginRight: 10,
-  },
-  syncStatus: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  generateButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-  },
-  generateButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  codeContainer: {
-    marginTop: 20,
-    alignItems: "center",
-    marginBottom: 100,
-  },
-  generatedCodeText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    padding: 15,
-    borderRadius: 15,
-    textAlign: "center",
-    width: 120,
-  },
-  closeButton: {
-    backgroundColor: "#FF2D55",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    elevation: 5,
-    position: "absolute",
-    bottom: 20,
-  },
-  closeButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  searchOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  searchOverlayContent: {
-    width: "75%",
-    height: "75%",
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  overlayTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 20,
-  },
-  overlayText: {
-    fontSize: 16,
-    color: "#fff",
-    textAlign: "center",
-  },
-
-  panelSubtitle: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 15,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
-  },
-  sectionDescription: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 10,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
-    marginBottom: 10,
-  },
-  actionButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  timeButtonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  timeButton: {
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginHorizontal: 5,
-    alignItems: "center",
-  },
-  timeButtonActive: {
-    backgroundColor: "#007AFF",
-  },
-  timeButtonText: {
-    fontSize: 12,
-    color: "#333",
-  },
-  timeButtonTextActive: {
-    color: "#fff",
-  },
-  shuttleInfo: {
-    backgroundColor: "#f0f0f0",
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  shuttleInfoText: {
-    fontSize: 14,
-    color: "#333",
-    marginVertical: 2,
-  },
-  horizontalScroll: {
-    flexDirection: "row",
-    marginVertical: 10,
-  },
-  placeCard: {
-    backgroundColor: "#f0f0f0",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    marginRight: 10,
-  },
-  placeCardText: {
-    fontSize: 14,
-    color: "#333",
-    fontWeight: "600",
-  },
-});
 
 export default HomeScreen;
