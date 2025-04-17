@@ -808,11 +808,14 @@ const AdminScreen = () => {
                       longitudeDelta: 0.01,
                     }}
                   >
-                    <Marker
-                      coordinate={shuttleTrackingState.shuttleLocation}
-                      title={`Shuttle ${shuttleTrackingState.selectedShuttleRegNumber}`}
-                      description="Current Location"
-                    />
+                    <Marker coordinate={shuttleTrackingState.shuttleLocation}>
+                      <View style={{ alignItems: 'center' }}>
+                        <Text style={{ fontWeight: 'bold' }}>
+                          Shuttle {shuttleTrackingState.selectedShuttleRegNumber}
+                        </Text>
+                        <Text>Current Location</Text>
+                      </View>
+                    </Marker>
                   </MapView>
                 ) : (
                   <Text>Location data unavailable.</Text>

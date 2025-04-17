@@ -12,7 +12,7 @@ import AssistantScreen from "./src/screens/AssistantScreen";
 import ListScreen from "./src/screens/ListScreen";
 import LogScreen from "./src/screens/LogScreen";
 import ParentLogScreen from "./src/screens/ParentLogScreen";
-import AssistantLogScreen from "./src/screens/AssistantLogScreen";
+import AdminLoginScreen from "./src/screens/AdminLoginScreen";
 import TrafficScreen from "./src/screens/Trafficscreen";
 import AdminScreen from "./src/screens/AdminScreen";
 import RouteScreen from "./src/screens/RouteScreen";
@@ -29,7 +29,7 @@ export type RootStackParamList = {
   ListScreen: { assistantNameId?: string; code?: string };
   LogScreen: undefined;
   ParentLogScreen: undefined;
-  AssistantLogScreen: undefined;
+  AdminLoginScreen: undefined;
   TrafficScreen: undefined;
   AdminScreen: undefined;
   RouteScreen: undefined;
@@ -50,7 +50,7 @@ function App() {
           <Stack.Screen name="ListScreen" component={ListScreen} />
           <Stack.Screen name="LogScreen" component={LogScreen} />
           <Stack.Screen name="ParentLogScreen" component={ParentLogScreen} />
-          <Stack.Screen name="AssistantLogScreen" component={AssistantLogScreen} />
+          <Stack.Screen name="AdminLoginScreen" component={AdminLoginScreen} />
           <Stack.Screen name="TrafficScreen" component={TrafficScreen} />
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
           <Stack.Screen name="RouteScreen" component={RouteScreen} />

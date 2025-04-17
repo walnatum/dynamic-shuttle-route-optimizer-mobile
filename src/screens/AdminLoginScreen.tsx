@@ -7,15 +7,15 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 
 // Assuming RootStackParamList is defined in your App.tsx or a types file
 type RootStackParamList = {
-  AssistantLogScreen: undefined;
+  AdminLoginScreen: undefined;
   AdminScreen: undefined;
   // Add other screens as needed
 };
 
-type AssistantLogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AssistantLogScreen'>;
+type AdminLoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AdminLoginScreen'>;
 
-const AssistantLogScreen: React.FC = () => {
-  const navigation = useNavigation<AssistantLogScreenNavigationProp>();
+const AdminLoginScreen: React.FC = () => {
+  const navigation = useNavigation<AdminLoginScreenNavigationProp>();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
@@ -74,7 +74,7 @@ const AssistantLogScreen: React.FC = () => {
 
         {/* Icon or Logo (Placeholder) */}
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>👔</Text> {/* Wrapped emoji in Text */}
+          <Text style={[styles.icon, { fontFamily: undefined }]}>👔</Text>
         </View>
 
         {/* Login Fields */}
@@ -247,4 +247,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AssistantLogScreen;
+export default AdminLoginScreen;

@@ -56,7 +56,7 @@ const LogScreen = () => {
   const goToAdmin = () => {
     console.log("Navigating to AdminScreen...");
     try {
-      navigation.navigate('AssistantLogScreen');
+      navigation.navigate('AdminLoginScreen');
     } catch (error) {
       console.error('Navigation error:', error);
       Alert.alert('Navigation Error', 'Could not navigate to Admin screen');
@@ -93,7 +93,7 @@ const LogScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#1A2526', '#00A3FF']} // Gradient from deep blue to blue
+      colors={['#1A2526', '#00A3FF']} 
       style={styles.container}
     >
       <View style={styles.overlay}>
