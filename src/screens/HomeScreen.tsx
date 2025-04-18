@@ -28,7 +28,9 @@ import { Linking } from 'react-native';
 import PullUpPanel from "./PullUpPanel";
 
 // Add this import at the top of HomeScreen.tsx with other imports
-import styles from "./HomeScreenStyles"; // Adjust the path if you placed the file in a different 
+import styles from "./styles/HomeScreenStyles"; // Adjust the path if you placed the file in a different 
+
+import Profile from "./Profile";
 
 export type RootStackParamList = {
   HomeScreen: undefined;
@@ -67,6 +69,7 @@ const HomeScreen = () => {
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [startMarker, setStartMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<string>("Checking...");
+  const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
 
   const openPhotoOverlay = () => {
     setShowPhotoOverlay(true);
@@ -741,11 +744,11 @@ const HomeScreen = () => {
           <Icon name="search" size={30} color="#666" />
         </TouchableOpacity>
         <TouchableOpacity 
-        style={styles.photoIconContainer}
-        onPress={openPhotoOverlay}
-      >
-        <Icon name="photo-camera" size={30} color="#666" />
-      </TouchableOpacity>
+          style={styles.photoIconContainer}
+          onPress={() => setShowProfileOverlay(true)}
+        >
+          <Icon name="person" size={30} color="#666" />
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity
@@ -980,6 +983,10 @@ const HomeScreen = () => {
             </TouchableOpacity>
           </LinearGradient>
         </View>
+      )}
+
+      {showProfileOverlay && (
+        <Profile onClose={() => setShowProfileOverlay(false)} />
       )}
     </View>
   );

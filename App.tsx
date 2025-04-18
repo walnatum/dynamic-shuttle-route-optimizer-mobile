@@ -18,8 +18,6 @@ import AdminScreen from "./src/screens/AdminScreen";
 import RouteScreen from "./src/screens/RouteScreen";
 import WeatherScreen from "./src/screens/WeatherScreen";
 
-import ParentTrackingScreen from "./src/screens/ParentTrackingScreen";
-
 export type RootStackParamList = {
   Login: undefined;
   HomeScreen: undefined;
@@ -54,7 +52,6 @@ function App() {
           <Stack.Screen name="TrafficScreen" component={TrafficScreen} />
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
           <Stack.Screen name="RouteScreen" component={RouteScreen} />
-          <Stack.Screen name="ParentTrackingScreen" component={ParentTrackingScreen} />
           <Stack.Screen name="WeatherScreen" component={WeatherScreen} />
 
         </Stack.Navigator>
