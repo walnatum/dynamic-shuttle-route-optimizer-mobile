@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   Button,
   Alert,
@@ -15,32 +13,32 @@ import {
   PanResponder,
   Dimensions,
 } from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp, NavigationProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-native-maps";
 import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import Config from "react-native-config";
 import Geolocation from '@react-native-community/geolocation';
-// import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
 import { Linking } from 'react-native';
-
-// Add this import at the top of HomeScreen.tsx with other imports
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import PullUpPanel from "./PullUpPanel";
-
-// Add this import at the top of HomeScreen.tsx with other imports
-import styles from "./styles/HomeScreenStyles"; // Adjust the path if you placed the file in a different 
-
+import styles from "./styles/HomeScreenStyles"; 
 import Profile from "./Profile";
 
 export type RootStackParamList = {
-  HomeScreen: undefined;
-  AssistantScreen: undefined;
+  HomeScreen: { driverCode: string } | undefined;
+  AssistantScreen: { tempCode: string; driverCode: string };
+  LogScreen: { tempCode: string; driverCode: string } | undefined;
   ParentTrackingScreen: { driverCode: string };
+  TrafficScreen: undefined;
+  WeatherScreen: undefined;
 };
 
+type HomeScreenRouteProp = RouteProp<RootStackParamList, "HomeScreen">;
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const route = useRoute<HomeScreenRouteProp>();
   const mapRef = useRef<MapView>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
@@ -69,7 +67,9 @@ const HomeScreen = () => {
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [startMarker, setStartMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<string>("Checking...");
+  const [driverCode, setDriverCode] = useState<string>("");
   const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   const openPhotoOverlay = () => {
     setShowPhotoOverlay(true);
@@ -106,39 +106,25 @@ const HomeScreen = () => {
     ],
   };
 
-
+  // Load driver_code from AsyncStorage on mount
   useEffect(() => {
-    const requestLocationPermission = async () => {
+    const loadDriverCode = async () => {
       try {
-        if (Platform.OS === "android") {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            {
-              title: "Location Permission",
-              message: "This app needs access to your location for shuttle tracking.",
-              buttonNeutral: "Ask Me Later",
-              buttonNegative: "Cancel",
-              buttonPositive: "OK",
-            }
-          );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-            setPermissionGranted(true);
-            setLocationStatus("Permission granted, checking location services...");
-          } else {
-            setPermissionGranted(false);
-            setLocationStatus("Permission denied");
-            Alert.alert("Permission Denied", "Please enable location permissions in Settings > Apps > Your App.");
-          }
+        const storedCode = await AsyncStorage.getItem("driver_code");
+        if (storedCode) {
+          setDriverCode(storedCode);
+        } else {
+          Alert.alert("Error", "Please log in first.");
+          navigation.navigate("LogScreen");
         }
-      } catch (err) {
-        console.error("Permission request error:", err);
-        setLocationStatus("Permission request failed");
-        Alert.alert("Error", "Failed to request location permission.");
+      } catch (error) {
+        console.error("Error loading driver code:", error);
+        Alert.alert("Error", "Failed to load driver information.");
+        navigation.navigate("LogScreen");
       }
     };
-    requestLocationPermission();
-  }, []);
-
+    loadDriverCode();
+  }, [navigation]);
 
   const goToTraffic = () => {
     navigation.navigate("TrafficScreen");
@@ -154,7 +140,6 @@ const HomeScreen = () => {
     }
 
     if (end === "Close Parking (Multiple Locations in Kampala)") {
-      showParkingLocations();
       return;
     }
 
@@ -165,7 +150,6 @@ const HomeScreen = () => {
 
     let startCoords, endCoords;
     try {
-      // Use Google Places API Text Search instead of Geocoding for more precise results
       const startPlacesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(start)}&key=${apiKey}&region=ug`;
       const startResponse = await fetch(startPlacesUrl);
       const startData = await startResponse.json();
@@ -237,6 +221,7 @@ const HomeScreen = () => {
     }
     setTravelTimesByMode(timesByMode);
   };
+
   const decodePolyline = (encoded) => {
     let points = [];
     let index = 0,
@@ -271,51 +256,8 @@ const HomeScreen = () => {
     return points;
   };
 
-  const showParkingLocations = async () => {
-    if (!start) {
-      Alert.alert("Error", "Please enter a starting location.");
-      return;
-    }
-
-    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
-    const parkingLocations = [
-      { name: "Parking Lot A", latitude: 0.3163, longitude: 32.5820 },
-      { name: "Parking Lot B", latitude: 0.3349, longitude: 32.5678 },
-    ];
-    let newTravelTimes = [];
-    let allCoordinates = [];
-
-    setParkingMarkers(parkingLocations);
-
-    for (const location of parkingLocations) {
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
-        start
-      )}&destination=${location.latitude},${location.longitude}&key=${apiKey}&mode=driving`;
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.status === "OK") {
-          const points = decodePolyline(data.routes[0].overview_polyline.points);
-          allCoordinates = [...allCoordinates, ...points];
-          newTravelTimes.push(`${location.name}: ${data.routes[0].legs[0].duration.text}`);
-        }
-      } catch (error) {
-        console.error("Error fetching parking route:", error);
-      }
-    }
-
-    setRouteCoordinates(allCoordinates);
-    setTravelTimes(newTravelTimes);
-    mapRef.current.fitToCoordinates(allCoordinates, {
-      edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-    });
-  };
-
-
   const useCurrentLocation = () => {
     if (!permissionGranted) {
-      // Alert.alert("Error", "Location permission not granted.");
-      // return;
       Alert.alert(
         "Permission Required",
         "Please enable location permissions in settings.",
@@ -326,13 +268,11 @@ const HomeScreen = () => {
       );
       return;
     }
-      // Show loading indicator
-      Alert.alert("Getting Location", "Please wait while we fetch your location...");
+    Alert.alert("Getting Location", "Please wait while we fetch your location...");
   
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        // Set the start marker
         setStartMarker({
           latitude,
           longitude,
@@ -360,10 +300,6 @@ const HomeScreen = () => {
             Alert.alert("Error", "Could not geocode location.");
           });
       },
-      // (error) => {
-      //   console.error("Geolocation error:", error.message);
-      //   Alert.alert("Error", `Could not get current location: ${error.message}`);
-      // },
       (error) => {
         let errorMessage = "Could not get current location";
         if (error.code === error.TIMEOUT) {
@@ -516,156 +452,47 @@ const HomeScreen = () => {
   };
 
   const generateCode = async () => {
+    if (!driverCode) {
+      Alert.alert("Error", "Please log in first.");
+      navigation.navigate("LogScreen");
+      return;
+    }
+  
+    setIsGenerating(true);
     setSyncStatus("In Sync");
-    const newCode = Math.floor(1000 + Math.random() * 9000).toString();
-    console.log("Generated Code:", newCode);
-    setGeneratedCode(newCode);
-  
     try {
-      // Create driver
-      const driverResponse = await fetch(`${API_BASE_URL}/api/drivers/`, {
+      const response = await fetch(`${Config.API_BASE_URL}/api/generate-driver-code/`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          driver_code: newCode,
-        }),
+        body: JSON.stringify({ driver_code: driverCode }),
       });
   
-      if (!driverResponse.ok) {
-        const errorText = await driverResponse.text();
-        throw new Error(`Failed to store driver code: ${errorText}`);
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Non-JSON response:", text);
+        throw new Error("Server returned non-JSON response");
       }
   
-      const driverData = await driverResponse.json();
-      console.log("Driver created with code:", driverData);
-  
-      // Assign shuttle
-      const shuttleResponse = await fetch(`${API_BASE_URL}/api/assign-shuttle/`, {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          driver_code: newCode,
-          reg_number: "UAB 345H",
-        }),
-      });
-  
-      if (!shuttleResponse.ok) {
-        const errorText = await shuttleResponse.text();
-        throw new Error(`Failed to assign shuttle: ${errorText}`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate code");
       }
   
-      const shuttleData = await shuttleResponse.json();
-      console.log("Shuttle assigned:", shuttleData);
-      setShuttleRegNumber(shuttleData.shuttle.reg_number);
+      setGeneratedCode(data.code);
       setSyncStatus("Synced");
-  
-      // Start location updates
-      const updateLocation = (driverCode: string) => {
-        if (!driverCode) {
-          setLocationStatus("Error: Driver code not provided");
-          return;
-        }
-  
-        if (!permissionGranted) {
-          setLocationStatus("No permission, using mock location");
-          const mockLocation = { latitude: 0.3476, longitude: 32.5825, driver_code: driverCode };
-          fetch(`${API_BASE_URL}/api/driver/update-location/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(mockLocation),
-          })
-            .then((res) => {
-              if (!res.ok) {
-                return res.json().then((errorData) => {
-                  throw new Error(errorData.error || "Failed to update mock location");
-                });
-              }
-              return res.json();
-            })
-            .then((data) => {
-              console.log("Mock location updated:", data);
-              setLocationStatus("Mock location updated");
-            })
-            .catch((err) => {
-              console.error("Mock location update error:", err.message);
-              setLocationStatus(`Mock Update Error: ${err.message}`);
-            });
-          return;
-        }
-  
-        Geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            setLocationStatus(`Location: ${latitude}, ${longitude} (GPS)`);
-            sendLocationUpdate(latitude, longitude, driverCode);
-          },
-          (error) => {
-            console.error("GPS error:", error.message, "Code:", error.code);
-            setLocationStatus(`GPS Error: ${error.message}`);
-            if (error.code === 3) {
-              // Fallback to network location on timeout
-              setLocationStatus("GPS timed out, trying network...");
-              Geolocation.getCurrentPosition(
-                (position) => {
-                  const { latitude, longitude } = position.coords;
-                  setLocationStatus(`Location: ${latitude}, ${longitude} (Network)`);
-                  sendLocationUpdate(latitude, longitude, driverCode);
-                },
-                (error) => {
-                  console.error("Network error:", error.message, "Code:", error.code);
-                  setLocationStatus(`Network Error: ${error.message}`);
-                  Alert.alert(
-                    "Location Failed",
-                    "Couldn’t get location. Ensure GPS is enabled and you’re in an open area, or check Wi-Fi/mobile data."
-                  );
-                },
-                { enableHighAccuracy: false, timeout: 20000, maximumAge: 10000 }
-              );
-            } else {
-              Alert.alert("Location Error", `Code ${error.code}: ${error.message}`);
-            }
-          },
-          { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
-        );
-      };
-  
-      const sendLocationUpdate = async (latitude: number, longitude: number, driverCode: string) => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/driver/update-location/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ latitude, longitude, driver_code: driverCode }),
-          });
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || "Failed to update location");
-          }
-          const data = await res.json();
-          console.log("Location updated:", data);
-        } catch (err) {
-          console.error("Location update error:", err.message);
-          setLocationStatus(`Update Error: ${err.message}`);
-          Alert.alert("Location Update Failed", err.message);
-        }
-      };
-  
-      updateLocation(newCode); // Initial update
-      const interval = setInterval(() => updateLocation(newCode), 30000); // Every 30s
-      return () => clearInterval(interval);
-    } catch (error) {
-      console.error("Error generating code:", error);
+      navigation.navigate("LogScreen", { tempCode: data.code, driverCode });
+    } catch (error: any) {
+      console.error("Error generating code:", error.message);
       setSyncStatus("UnSync");
-      Alert.alert("Error", "Failed to setup driver or shuttle.");
+      Alert.alert("Error", error.message || "Failed to generate code");
+    } finally {
+      setIsGenerating(false);
     }
   };
-
-
   const panResponder = React.useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -710,21 +537,20 @@ const HomeScreen = () => {
             </Callout>
           </Marker>
         ))}
-
         {startMarker && (
-            <Marker
-              coordinate={startMarker}
-              title="Start"
-              pinColor="green" // Different color for start marker
-            />
-          )}
+          <Marker
+            coordinate={startMarker}
+            title="Start"
+            pinColor="green"
+          />
+        )}
         {destinationMarker && (
-                <Marker
-                  coordinate={destinationMarker}
-                  title={end}
-                  pinColor="red" // You can change the color to distinguish it from other markers
-                />
-              )}
+          <Marker
+            coordinate={destinationMarker}
+            title={end}
+            pinColor="red"
+          />
+        )}
       </MapView>
 
       <View style={styles.searchContainer}>
@@ -766,19 +592,12 @@ const HomeScreen = () => {
 
       {showRouteInput && !travelTimesByMode && !hideInputs && (
         <View style={styles.routeWiseOverlay}>
-          {/* <TouchableOpacity 
-            style={styles.cancelIcon} 
+          <TouchableOpacity
+            style={styles.cancelIcon}
             onPress={() => setShowRouteInput(false)}
           >
             <Icon name="cancel" size={30} color="#FF2D55" />
-          </TouchableOpacity> */}
-
-          <TouchableOpacity
-            style={styles.cancelIcon}  // ✅ Use proper style reference
-            onPress={() => setShowRouteInput(false)}  // ✅ Fixed arrow function
-        >
-            <Icon name="cancel" size={30} color="#FF2D55" />  // ✅ Correct icon name
-        </TouchableOpacity>
+          </TouchableOpacity>
           <View style={styles.inputContainer}>
             <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.inputWrapper}>
               <TextInput
@@ -815,7 +634,6 @@ const HomeScreen = () => {
               >
                 <Text style={styles.buttonText}>My Location</Text>
               </TouchableOpacity>
-
               <TouchableOpacity 
                 style={styles.functionButton}
                 onPress={resetMap}
@@ -880,95 +698,95 @@ const HomeScreen = () => {
         )}
       </View>
 
+      <View style={{ width: "100%", position: "relative" }}>
+        <PullUpPanel
+          selectedTime={selectedTime}
+          showTimeBasedLocations={showTimeBasedLocations}
+          navigateToTimeLocations={navigateToTimeLocations}
+          setShowRouteInput={setShowRouteInput}
+          useCurrentLocation={useCurrentLocation}
+          setShowAssistantOverlay={setShowAssistantOverlay}
+          generatedCode={generatedCode}
+          shuttleRegNumber={shuttleRegNumber}
+          setSearchQuery={setSearchQuery}
+          searchPlaces={searchPlaces}
+          goToWeather={goToWeather}
+          goToTraffic={goToTraffic}
+        />
+      </View>
 
-{/* Other components like MapView, searchContainer, etc. */}
-<View style={{ width: "100%", position: "relative" }}>
-  <PullUpPanel
-    selectedTime={selectedTime}
-    showTimeBasedLocations={showTimeBasedLocations}
-    navigateToTimeLocations={navigateToTimeLocations}
-    setShowRouteInput={setShowRouteInput}
-    useCurrentLocation={useCurrentLocation}
-    setShowAssistantOverlay={setShowAssistantOverlay}
-    generatedCode={generatedCode}
-    shuttleRegNumber={shuttleRegNumber}
-    setSearchQuery={setSearchQuery}
-    searchPlaces={searchPlaces}
-    goToWeather={goToWeather}
-    goToTraffic={goToTraffic}
-  />
-</View>
-{/* Other overlays like showPhotoOverlay, showAssistantOverlay, etc. */}
-
-        <View style={styles.floatingButtons}>
-          {/* <TouchableOpacity style={styles.floatingButton}>
-            <Text style={styles.buttonText}>Weather</Text>
-          </TouchableOpacity> */}
-          <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
-            <Text style={styles.buttonText}>Weather</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
-            <Text style={styles.buttonText}>Traffic</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.floatingButton}>
-            <Text style={styles.buttonText}>Crash</Text>
-          </TouchableOpacity>
-
-        </View>
-
-
+      <View style={styles.floatingButtons}>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
+          <Text style={styles.buttonText}>Weather</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+          <Text style={styles.buttonText}>Traffic</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton}>
+          <Text style={styles.buttonText}>Crash</Text>
+        </TouchableOpacity>
+      </View>
 
       {showPhotoOverlay && (
-      <View style={styles.overlay}>
-        <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.photoOverlayContent}>
-          <Text style={styles.overlayTitle}>Photo Options</Text>
-          <Text style={styles.overlayText}>Take a photo or upload from gallery</Text>
-          <TouchableOpacity style={styles.overlayButton}>
-            <Text style={styles.buttonText}>Take Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.overlayButton}>
-            <Text style={styles.buttonText}>Upload from Gallery</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowPhotoOverlay(false)}
-          >
-            <Text style={styles.closeButtonText}>Close</Text>
-          </TouchableOpacity>
-        </LinearGradient>
-      </View>
-    )}
+        <View style={styles.overlay}>
+          <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.photoOverlayContent}>
+            <Text style={styles.overlayTitle}>Photo Options</Text>
+            <Text style={styles.overlayText}>Take a photo or upload from gallery</Text>
+            <TouchableOpacity style={styles.overlayButton}>
+              <Text style={styles.buttonText}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.overlayButton}>
+              <Text style={styles.buttonText}>Upload from Gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowPhotoOverlay(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      )}
 
       {showAssistantOverlay && (
-              <View style={styles.overlay}>
-                <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.overlayContent}>
-                  <View style={styles.syncContainer}>
-                    <Text style={styles.syncLabel}>Sync:</Text>
-                    <Text style={[styles.syncStatus, syncStatus === "Synced" && { color: "#00ff00" }]}>
-                      {syncStatus}
-                    </Text>
-                  </View>
-                  <Text style={styles.syncLabel}>Location: {locationStatus}</Text> {/* Debug info */}
-                  <TouchableOpacity style={styles.generateButton} onPress={generateCode}>
-                    <Text style={styles.generateButtonText}>Generate</Text>
-                  </TouchableOpacity>
-                  {generatedCode && (
-                    <View style={styles.codeContainer}>
-                      <Text style={styles.generatedCodeText}>{generatedCode}</Text>
-                      {shuttleRegNumber && (
-                        <Text style={styles.generatedCodeText}>Shuttle: {shuttleRegNumber}</Text>
-                      )}
-                    </View>
-                  )}
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setShowAssistantOverlay(false)}
-                  >
-                    <Text style={styles.closeButtonText}>Close</Text>
-                  </TouchableOpacity>
-                </LinearGradient>
+        <View style={styles.overlay}>
+          <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.overlayContent}>
+            <Text style={styles.overlayTitle}>Driver Verification</Text>
+            <Text style={styles.overlayText}>
+              Generate a verification code to assign a shuttle.
+            </Text>
+            <View style={styles.syncContainer}>
+              <Text style={styles.syncLabel}>Sync:</Text>
+              <Text style={[styles.syncStatus, syncStatus === "Synced" && { color: "#00ff00" }]}>
+                {syncStatus}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.generateButton, isGenerating && styles.disabledButton]}
+              onPress={generateCode}
+              disabled={isGenerating}
+            >
+              <Text style={styles.generateButtonText}>
+                {isGenerating ? "Generating..." : "Generate Verification Code"}
+              </Text>
+            </TouchableOpacity>
+            {generatedCode && (
+              <View style={styles.codeContainer}>
+                <Text style={styles.generatedCodeText}>Code: {generatedCode}</Text>
+                {shuttleRegNumber && (
+                  <Text style={styles.generatedCodeText}>Shuttle: {shuttleRegNumber}</Text>
+                )}
               </View>
-    )}
+            )}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowAssistantOverlay(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      )}
 
       {showSearchOverlay && (
         <View style={styles.searchOverlay}>
@@ -991,6 +809,5 @@ const HomeScreen = () => {
     </View>
   );
 };
-
 
 export default HomeScreen;

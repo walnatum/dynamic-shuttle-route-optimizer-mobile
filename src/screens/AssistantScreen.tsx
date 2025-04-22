@@ -2,32 +2,35 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   Alert,
   PermissionsAndroid,
   Platform,
   TextInput,
 } from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import Config from "react-native-config";
-import styles from "./styles/AssistantScreenStyles"; // Adjust the path if you placed the file in a different 
+import styles from "./styles/AssistantScreenStyles";
+
 
 
 type RootStackParamList = {
-  ListScreen: { assistantNameId?: string; code?: string };
-  AssistantScreen: undefined;
+  ListScreen: { driverCode: string; shuttle: { reg_number: string } | null };
+  AssistantScreen: { tempCode: string; driverCode: string };
+  LogScreen: { tempCode: string; driverCode: string };
 };
 
+type AssistantScreenRouteProp = RouteProp<RootStackParamList, 'AssistantScreen'>;
 
 const AssistantScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const route = useRoute<AssistantScreenRouteProp>();
+  const { tempCode, driverCode } = route.params || { tempCode: "", driverCode: "" };
   const mapRef = useRef<MapView>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
-  const [assistantNameId, setAssistantNameId] = useState<string>("");
-  const [code, setCode] = useState<string>("");
+  const [code, setCode] = useState<string>(tempCode);
 
   const defaultLocation = {
     latitude: 0.3476,
@@ -62,44 +65,38 @@ const AssistantScreen = () => {
   }, []);
 
   const handleEnter = async () => {
-    if (!assistantNameId.trim() || !code.trim()) {
-      Alert.alert("Error", "Please enter both Assistant Name and Code.");
+    if (!code.trim()) {
+      Alert.alert("Error", "Please enter a code.");
       return;
     }
 
-    // Verify code with backend
     try {
-      console.log("Verifying code:", code);
-      console.log("URL:", `${Config.API_BASE_URL}/api/verify-driver-code/`);
       const response = await fetch(`${Config.API_BASE_URL}/api/verify-driver-code/`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ driver_code: code }),
+        body: JSON.stringify({ driver_code: driverCode, code }),
       });
 
-      const driverData = await response.json(); // Read body once as JSON
-      console.log("Response status:", response.status);
-      console.log("Response body:", driverData);
-
+      const data = await response.json();
       if (!response.ok) {
-        console.error("Verification error:", response.status, driverData);
-        throw new Error("Invalid driver code");
+        throw new Error(data.error || "Invalid code");
       }
 
-      console.log("Verified driver:", driverData);
-      navigation.navigate("ListScreen", { assistantNameId, code });
-    } catch (error) {
-      console.error("Error verifying code:", error);
-      Alert.alert("Error", "Invalid code. Please try again.");
+      navigation.navigate("ListScreen", { 
+        driverCode,
+        shuttle: data.shuttle 
+      });
+    } catch (error: any) {
+      console.error("Error verifying code:", error.message);
+      Alert.alert("Error", error.message || "Invalid code. Please try again.");
     }
   };
 
-  const resetInput = (field: "assistant" | "code") => {
-    if (field === "assistant") setAssistantNameId("");
-    if (field === "code") setCode("");
+  const resetInput = () => {
+    setCode("");
   };
 
   return (
@@ -114,27 +111,13 @@ const AssistantScreen = () => {
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
-            placeholder="Assistant Name"
-            value={assistantNameId}
-            onChangeText={setAssistantNameId}
-            placeholderTextColor="#666"
-          />
-          {assistantNameId && (
-            <TouchableOpacity style={styles.clearButton} onPress={() => resetInput("assistant")}>
-              <Text style={styles.clearButtonText}>X</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.input}
-            placeholder="Code"
+            placeholder="Enter Code"
             value={code}
             onChangeText={setCode}
             placeholderTextColor="#666"
           />
           {code && (
-            <TouchableOpacity style={styles.clearButton} onPress={() => resetInput("code")}>
+            <TouchableOpacity style={styles.clearButton} onPress={resetInput}>
               <Text style={styles.clearButtonText}>X</Text>
             </TouchableOpacity>
           )}
@@ -157,6 +140,7 @@ const AssistantScreen = () => {
     </View>
   );
 };
+
 
 
 

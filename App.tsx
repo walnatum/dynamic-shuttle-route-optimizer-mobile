@@ -23,9 +23,9 @@ export type RootStackParamList = {
   HomeScreen: undefined;
   ParentScreen: undefined;
   RouteTrackerScreen: undefined;
-  AssistantScreen: undefined;
-  ListScreen: { assistantNameId?: string; code?: string };
-  LogScreen: undefined;
+  AssistantScreen: { tempCode: string; driverCode: string };
+  ListScreen: { driverCode: string; shuttle: { reg_number: string } | null };
+  LogScreen: { tempCode: string; driverCode: string } | undefined;
   ParentLogScreen: undefined;
   AdminLoginScreen: undefined;
   TrafficScreen: undefined;

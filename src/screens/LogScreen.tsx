@@ -1,134 +1,183 @@
-import React, { useState, useLayoutEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import LinearGradient from 'react-native-linear-gradient';
-import { RootStackParamList } from '../../App';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import React, { useState, useLayoutEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Image,
+} from "react-native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import LinearGradient from "react-native-linear-gradient";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Config from "react-native-config";
 
-type LogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Log'>;
+export type RootStackParamList = {
+  LogScreen: { tempCode: string; driverCode: string } | undefined;
+  HomeScreen: { driverCode: string } | undefined;
+  AssistantScreen: { tempCode: string; driverCode: string };
+  ParentLogScreen: undefined;
+  AssistantLogScreen: undefined;
+  RouteScreen: undefined;
+};
+
+type LogScreenRouteProp = RouteProp<RootStackParamList, "LogScreen">;
+type LogScreenNavigationProp = StackNavigationProp<RootStackParamList, "LogScreen">;
 
 const LogScreen = () => {
-  const navigation = useNavigation<LogScreenNavigationProp>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const navigation = useNavigation<LogScreenNavigationProp>();	
+  const route = useRoute<LogScreenRouteProp>();
+  const { tempCode = "", driverCode = "" } = route.params || {};
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
+    // Check for stored driver_code on mount
+    AsyncStorage.getItem("driver_code").then((storedCode) => {
+      if (storedCode) {
+        navigation.navigate("HomeScreen", { driverCode: storedCode });
+      }
+    });
   }, [navigation]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password.');
+      Alert.alert("Error", "Please enter both email and password.");
       return;
     }
-    console.log('Logging in with:', email, password);
-    try {
-      navigation.navigate('HomeScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Home screen');
-    }
-  };
 
-  const goToParent = () => {
-    console.log("Navigating to ParentLogScreen...");
+    setIsLoading(true);
     try {
-      navigation.navigate('ParentLogScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
+      const response = await fetch(`${Config.API_BASE_URL}/api/login/`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      const driverCode = data.driver_code;
+      if (!driverCode) {
+        throw new Error("No driver code returned from login");
+      }
+
+      // Store driver_code
+      await AsyncStorage.setItem("driver_code", driverCode);
+      navigation.navigate("HomeScreen", { driverCode });
+    } catch (error: any) {
+      console.error("Login error:", error.message);
+      Alert.alert("Error", error.message || "Could not log in");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const goToAssistant = () => {
-    console.log("Navigating to AssistantScreen...");
+    if (!tempCode || !driverCode) {
+      Alert.alert("Error", "Please log in first to generate a driver code.");
+      return;
+    }
     try {
-      navigation.navigate('AssistantScreen');
+      navigation.navigate("AssistantScreen", { tempCode, driverCode });
     } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Assistant screen');
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate to Assistant screen");
+    }
+  };
+
+  const goToParent = () => {
+    try {
+      navigation.navigate("ParentLogScreen");
+    } catch (error) {
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate to Parent screen");
     }
   };
 
   const goToAdmin = () => {
-    console.log("Navigating to AdminScreen...");
     try {
-      navigation.navigate('AdminLoginScreen');
+      navigation.navigate("AssistantLogScreen");
     } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Admin screen');
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate to Admin screen");
     }
   };
 
   const goToRoute = () => {
-    console.log("Navigating to AdminScreen...");
     try {
-      navigation.navigate('RouteScreen');
+      navigation.navigate("RouteScreen");
     } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Admin screen');
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate to Route screen");
     }
   };
 
   const goBack = () => {
-    console.log("Navigating back...");
     try {
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        Alert.alert("Navigation", "No previous screen to go back to.");
+      }
     } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate back');
+      console.error("Navigation error:", error);
+      Alert.alert("Navigation Error", "Could not navigate back");
     }
   };
 
   const clearEmail = () => {
-    setEmail('');
+    setEmail("");
   };
 
   const clearPassword = () => {
-    setPassword('');
+    setPassword("");
   };
 
   return (
     <LinearGradient
-      colors={['#1A2526', '#00A3FF']} 
+      colors={["#1A2526", "#00A3FF"]}
       style={styles.container}
     >
       <View style={styles.overlay}>
-        {/* Back Arrow */}
         <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Icon name="arrow-back" size={30} color="#fff" />
         </TouchableOpacity>
 
-        {/* Assistant Button in Top-Right Corner */}
         <TouchableOpacity style={styles.topAssistantButton} onPress={goToAssistant}>
           <Text style={styles.assistantButtonText}>Assistant</Text>
         </TouchableOpacity>
 
-        {/* Header */}
         <Text style={styles.title}>Driver Login</Text>
         <Text style={styles.subtitle}>Access Your Journey</Text>
 
-        {/* Logo */}
         <View style={styles.iconContainer}>
           <Image
-            source={require('../assets/Logo.png')} // Path to Logo.png
+            source={require("../assets/Logo.png")}
             style={styles.logo}
           />
         </View>
 
-        {/* Login Fields */}
         <View style={styles.inputContainer}>
           <LinearGradient
-            colors={['#ffffff', '#e0e0e0']}
+            colors={["#ffffff", "#e0e0e0"]}
             style={styles.inputWrapper}
           >
             <View style={styles.inputRow}>
               <TextInput
                 style={styles.input}
-                placeholder="Username"
+                placeholder="Email"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -144,7 +193,7 @@ const LogScreen = () => {
           </LinearGradient>
 
           <LinearGradient
-            colors={['#ffffff', '#e0e0e0']}
+            colors={["#ffffff", "#e0e0e0"]}
             style={styles.inputWrapper}
           >
             <View style={styles.inputRow}>
@@ -165,12 +214,14 @@ const LogScreen = () => {
           </LinearGradient>
         </View>
 
-        {/* Login Button */}
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Login</Text>
+        <TouchableOpacity
+          style={[styles.loginButton, isLoading && styles.disabledButton]}
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          <Text style={styles.buttonText}>{isLoading ? "Logging in..." : "Login"}</Text>
         </TouchableOpacity>
 
-        {/* Role Buttons (As Parent, As Admin) */}
         <View style={styles.roleButtonContainer}>
           <TouchableOpacity style={[styles.roleButton, styles.parentButton]} onPress={goToParent}>
             <Text style={styles.roleButtonText}>As Parent</Text>
@@ -183,12 +234,8 @@ const LogScreen = () => {
           <TouchableOpacity style={[styles.roleButton, styles.adminButton]} onPress={goToRoute}>
             <Text style={styles.roleButtonText}>As Route</Text>
           </TouchableOpacity>
-
         </View>
 
-        
-
-        {/* Footer Text */}
         <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
       </View>
     </LinearGradient>
@@ -198,84 +245,84 @@ const LogScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   overlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
     padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 20,
     left: 15,
     zIndex: 20,
   },
   topAssistantButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 20,
     right: 15,
-    backgroundColor: '#007AFF', // Bright blue
+    backgroundColor: "#007AFF",
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 20,
     zIndex: 20,
   },
   assistantButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   title: {
     fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
     marginBottom: 10,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 5,
   },
   subtitle: {
     fontSize: 18,
-    color: '#fff',
-    textAlign: 'center',
+    color: "#fff",
+    textAlign: "center",
     marginBottom: 30,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     opacity: 0.9,
   },
   iconContainer: {
     marginBottom: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   logo: {
     width: 100,
     height: 100,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   inputContainer: {
-    width: '80%',
+    width: "80%",
     marginBottom: 20,
   },
   inputWrapper: {
     borderRadius: 25,
     marginBottom: 15,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
   },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: 25,
   },
   input: {
@@ -283,68 +330,70 @@ const styles = StyleSheet.create({
     height: 50,
     paddingHorizontal: 20,
     fontSize: 16,
-    color: '#333',
+    color: "#333",
   },
   refreshIcon: {
     padding: 10,
     zIndex: 10,
   },
   loginButton: {
-    backgroundColor: '#0066CC', // Darker blue for login button
+    backgroundColor: "#0066CC",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
     marginVertical: 10,
-    width: '80%',
-    alignItems: 'center',
-    shadowColor: '#000',
+    width: "80%",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
   },
+  disabledButton: {
+    backgroundColor: "#999",
+  },
   roleButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "80%",
     marginTop: 10,
   },
   roleButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 20,
-    width: '48%',
-    alignItems: 'center',
-    shadowColor: '#000',
+    width: "48%",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
   },
   parentButton: {
-    backgroundColor: '#007AFF', // Bright blue
+    backgroundColor: "#007AFF",
   },
   adminButton: {
-    backgroundColor: '#0047AB', // Different shade of blue (cobalt)
+    backgroundColor: "#0047AB",
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   roleButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   footerText: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 20,
     fontSize: 14,
-    color: '#fff',
-    textAlign: 'center',
+    color: "#fff",
+    textAlign: "center",
     opacity: 0.7,
   },
 });
-
 export default LogScreen;

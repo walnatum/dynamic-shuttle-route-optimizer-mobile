@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   TextInput,
   FlatList,
@@ -13,8 +12,13 @@ import {
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import Config from "react-native-config";
-import styles from "./styles/ListScreenStyles"; // Adjust the path if you placed the file in a different 
+import styles from "./styles/ListScreenStyles"; 
 
+type RootStackParamList = {
+  ListScreen: { driverCode: string; shuttle: { reg_number: string } | null };
+};
+
+type ListScreenRouteProp = RouteProp<RootStackParamList, 'ListScreen'>;
 
 interface Student {
   id: string;
@@ -25,25 +29,15 @@ interface Student {
   offboarded_at?: string | null;
 }
 
-type RootStackParamList = {
-  ListScreen: {
-    assistantName?: string;
-    code?: string;
-  };
-};
-
-type ListScreenRouteProp = RouteProp<RootStackParamList, 'ListScreen'>;
-
-
 const ListScreen = () => {
-  //const navigation = useNavigation();
   const route = useRoute<ListScreenRouteProp>();
-  const { assistantName, code } = route.params || {};
+  const { driverCode, shuttle } = route.params || { driverCode: "", shuttle: null };
   const [students, setStudents] = useState<Student[]>([]);
   const [leftStudents, setLeftStudents] = useState<Student[]>([]);
-  const [newStudentCode, setNewStudentCode] = useState("");
+  const [newStudentName, setNewStudentName] = useState<string>("");
+  const [newStudentCode, setNewStudentCode] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
 
   const defaultLocation = {
     latitude: 0.3476,
@@ -52,7 +46,6 @@ const ListScreen = () => {
     longitudeDelta: 0.05,
   };
 
-  // Location permission request
   useEffect(() => {
     const requestLocationPermission = async () => {
       try {
@@ -78,16 +71,70 @@ const ListScreen = () => {
     requestLocationPermission();
   }, []);
 
-  // On-board student onto the shuttle
   const addStudent = async () => {
-    if (!newStudentCode.trim()) {
-      Alert.alert("Error", "Please enter a student code.");
+    if (!newStudentName.trim()) {
+      Alert.alert("Error", "Please enter a student name.");
+      return;
+    }
+    if (!shuttle) {
+      Alert.alert("Error", "No shuttle assigned to this driver.");
       return;
     }
 
     try {
-      console.log(`Fetching student with code: ${newStudentCode}`);
-      const fetchResponse = await fetch(`${Config.API_BASE_URL}/api/students/${newStudentCode}/`, {
+      const studentData: any = {
+        driver_code: driverCode,
+        student_name: newStudentName,
+        shuttle: shuttle.reg_number,
+      };
+      if (newStudentCode.trim()) {
+        studentData.student_code = newStudentCode;
+      }
+
+      const response = await fetch(`${Config.API_BASE_URL}/api/students/`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(studentData),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to add student");
+      }
+
+      const newStudent: Student = {
+        id: data.id,
+        name: data.student_name,
+        school: data.school_name,
+        onboarded: data.onboarded,
+        student_code: data.student_code,
+        offboarded_at: data.offboarded_at,
+      };
+
+      if (students.some((existingStudent) => existingStudent.id === newStudent.id)) {
+        Alert.alert("Error", "Student is already in the list.");
+        return;
+      }
+
+      setStudents((prevStudents) => [...prevStudents, newStudent]);
+      setNewStudentName("");
+      setNewStudentCode("");
+      Alert.alert("Success", "Student added successfully.");
+    } catch (error: any) {
+      console.error("Error adding student:", error.message);
+      Alert.alert("Error", error.message || "Failed to add student. Check the code or network.");
+    }
+  };
+
+  const removeStudent = async (id: string, name: string) => {
+    const studentToRemove = students.find((student) => student.id === id);
+    if (!studentToRemove) return;
+
+    try {
+      const assignmentsResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/`, {
         method: "GET",
         headers: {
           "Accept": "application/json",
@@ -95,129 +142,57 @@ const ListScreen = () => {
         },
       });
 
-      if (!fetchResponse.ok) {
-        const errorText = await fetchResponse.text();
-        console.error("Fetch error:", fetchResponse.status, errorText);
-        throw new Error(`Student not found. Status: ${fetchResponse.status}`);
+      if (!assignmentsResponse.ok) {
+        const errorText = await assignmentsResponse.text();
+        throw new Error(`Failed to fetch assignments: ${errorText}`);
       }
 
-      const studentData = await fetchResponse.json();
-      console.log("Fetched student:", studentData);
+      const assignmentsData = await assignmentsResponse.json();
+      const activeAssignment = assignmentsData.find(
+        (assignment: any) => assignment.student.id === id && !assignment.offboarded_at
+      );
 
-      // Update onboarded status on the backend
-      const updateResponse = await fetch(`${Config.API_BASE_URL}/api/students/${newStudentCode}/`, {
+      if (!activeAssignment) {
+        throw new Error("No active shuttle assignment found for this student.");
+      }
+
+      const offboardTime = new Date().toISOString();
+      const updateResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/${activeAssignment.id}/`, {
         method: "PATCH",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ onboarded: true }),
+        body: JSON.stringify({
+          offboarded_at: offboardTime,
+        }),
       });
 
       if (!updateResponse.ok) {
         const errorText = await updateResponse.text();
-        console.error("Update error:", updateResponse.status, errorText);
-        throw new Error(`Failed to update student. Status: ${updateResponse.status}`);
+        throw new Error(`Failed to offboard student: ${errorText}`);
       }
 
-      const updatedStudentData = await updateResponse.json();
-      console.log("Updated student:", updatedStudentData);
+      const updatedStudents = students.filter((student) => student.id !== id);
+      setStudents(updatedStudents);
 
-      const newStudent: Student = {
-        id: updatedStudentData.id,
-        name: updatedStudentData.student_name,
-        school: updatedStudentData.school_name,
-        onboarded: updatedStudentData.onboarded,
-        student_code: updatedStudentData.student_code,
-        offboarded_at: updatedStudentData.offboarded_at,
-      };
-
-      // Check if student already exists
-      if (students.some((existingStudent) => existingStudent.id === newStudent.id)) {
-        Alert.alert("Error", "Student is already in the list.");
-        return;
-      }
-
-      setStudents((prevStudents) => [...prevStudents, newStudent]);
-      setNewStudentCode(""); // Reset input
+      setLeftStudents((prevLeftStudents) => [
+        ...prevLeftStudents,
+        {
+          id,
+          name,
+          school: studentToRemove.school,
+          onboarded: false,
+          student_code: studentToRemove.student_code,
+          offboarded_at: offboardTime,
+        },
+      ]);
+      Alert.alert("Success", "Student offboarded successfully.");
     } catch (error: any) {
-      console.error("Error fetching student:", error.message);
-      Alert.alert("Error", error.message || "Failed to fetch student. Check the code or network.");
+      console.error("Error offboarding student:", error.message);
+      Alert.alert("Error", error.message || "Failed to offboard student.");
     }
   };
-
-  // Off-board student from the shuttle
-const removeStudent = async (id: string, name: string) => {
-  const studentToRemove = students.find((student) => student.id === id);
-  if (!studentToRemove) return;
-
-  try {
-    // Fetch the active ShuttleAssignment for this student
-    const assignmentsResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/`, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!assignmentsResponse.ok) {
-      const errorText = await assignmentsResponse.text();
-      console.error("Assignments fetch error:", assignmentsResponse.status, errorText);
-      throw new Error(`Failed to fetch assignments. Status: ${assignmentsResponse.status}`);
-    }
-
-    const assignmentsData = await assignmentsResponse.json();
-    const activeAssignment = assignmentsData.find(
-      (assignment: any) => assignment.student.id === id && !assignment.offboarded_at
-    );
-
-    if (!activeAssignment) {
-      throw new Error("No active shuttle assignment found for this student.");
-    }
-
-    // Update the ShuttleAssignment to set offboarded_at
-    const offboardTime = new Date().toISOString();
-    const updateResponse = await fetch(`${Config.API_BASE_URL}/api/shuttle-assignments/${activeAssignment.id}/`, {
-      method: "PATCH",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        offboarded_at: offboardTime,
-      }),
-    });
-
-    if (!updateResponse.ok) {
-      const errorText = await updateResponse.text();
-      console.error("Offboard error:", updateResponse.status, errorText);
-      throw new Error(`Failed to offboard student. Status: ${updateResponse.status}`);
-    }
-
-    const updatedAssignmentData = await updateResponse.json();
-    console.log("Offboarded assignment:", updatedAssignmentData);
-
-    // Update local state
-    const updatedStudents = students.filter((student) => student.id !== id);
-    setStudents(updatedStudents);
-
-    setLeftStudents((prevLeftStudents) => [
-      ...prevLeftStudents,
-      {
-        id,
-        name,
-        school: studentToRemove.school,
-        onboarded: false,
-        student_code: studentToRemove.student_code,
-        offboarded_at: offboardTime,
-      },
-    ]);
-  } catch (error: any) {
-    console.error("Error offboarding student:", error.message);
-    Alert.alert("Error", error.message || "Failed to offboard student.");
-  }
-};
 
   return (
     <View style={styles.container}>
@@ -226,27 +201,32 @@ const removeStudent = async (id: string, name: string) => {
         provider={PROVIDER_GOOGLE}
         initialRegion={defaultLocation}
       />
-
       <View style={styles.infoContainer}>
-        <Text style={styles.info}>Assistant Name: {assistantName || "N/A"}</Text>
-        <Text style={styles.info}>Code: {code || "N/A"}</Text>
+        <Text style={styles.info}>Driver Code: {driverCode || "N/A"}</Text>
+        <Text style={styles.info}>Shuttle: {shuttle?.reg_number || "N/A"}</Text>
       </View>
-
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
-            placeholder="Enter student code"
+            placeholder="Student Name"
+            value={newStudentName}
+            onChangeText={setNewStudentName}
+            placeholderTextColor="#666"
+          />
+        </View>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            placeholder="Student Code (optional)"
             value={newStudentCode}
             onChangeText={setNewStudentCode}
             placeholderTextColor="#666"
           />
-          <TouchableOpacity style={styles.addButton} onPress={addStudent}>
-            <Text style={styles.addButtonText}>Add</Text>
-          </TouchableOpacity>
         </View>
-
-        {/* Students List */}
+        <TouchableOpacity style={styles.addButton} onPress={addStudent}>
+          <Text style={styles.addButtonText}>Add</Text>
+        </TouchableOpacity>
         <View style={styles.studentList}>
           <Text style={styles.listTitle}>On-boarded students</Text>
           <FlatList
@@ -266,8 +246,6 @@ const removeStudent = async (id: string, name: string) => {
             keyExtractor={(item) => item.id}
           />
         </View>
-
-        {/* Left Students List */}
         {leftStudents.length > 0 && (
           <View style={styles.studentList}>
             <Text style={styles.listTitle}>Off-boarded students</Text>
@@ -277,7 +255,9 @@ const removeStudent = async (id: string, name: string) => {
                 <View style={styles.studentItem}>
                   <Text style={styles.studentInitial}>{item.name.charAt(0).toUpperCase()}</Text>
                   <Text style={styles.studentName}>{item.name}</Text>
-                  <Text style={styles.statusText}>Left at {item.offboarded_at ? new Date(item.offboarded_at).toLocaleTimeString() : "N/A"}</Text>
+                  <Text style={styles.statusText}>
+                    Left at {item.offboarded_at ? new Date(item.offboarded_at).toLocaleTimeString() : "N/A"}
+                  </Text>
                 </View>
               )}
               keyExtractor={(item) => item.id}
@@ -285,8 +265,6 @@ const removeStudent = async (id: string, name: string) => {
           </View>
         )}
       </View>
-
-      {/* Floating Buttons */}
       <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton}>
           <Text style={styles.buttonText}>Weather</Text>
@@ -301,7 +279,6 @@ const removeStudent = async (id: string, name: string) => {
     </View>
   );
 };
-
 
 
 export default ListScreen;
