@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TextInput,
   FlatList,
   Modal,
-  Alert,
   ActivityIndicator,
   ScrollView,
   Platform,
@@ -15,10 +14,11 @@ import {
 import Icon from "react-native-vector-icons/MaterialIcons";
 import Config from "react-native-config";
 import { Picker } from "@react-native-picker/picker";
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import { request, PERMISSIONS } from 'react-native-permissions';
-import styles from "./styles/AdminScreenStyles"; // Adjust the path if you placed the file in a different 
-
+import Toast from 'react-native-toast-message';
+import polyline from '@mapbox/polyline';
+import styles from "./styles/AdminScreenStyles";
 
 // --- Constants ---
 const CLASS_CHOICES = [
@@ -86,6 +86,8 @@ type Student = {
   shuttle?: string | null;
   onboarded: boolean;
   offboarded_at: string | null;
+  point_latitude?: number | null;
+  point_longitude?: number | null;
 };
 
 type ShuttleTrackingState = {
@@ -94,6 +96,7 @@ type ShuttleTrackingState = {
   shuttleLocation: { latitude: number; longitude: number } | null;
   studentsOnShuttle: Student[];
   loadingShuttleDetails: boolean;
+  movementPath: { latitude: number; longitude: number }[];
 };
 
 // --- Component ---
@@ -107,7 +110,8 @@ const AdminScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentStep, setCurrentStep] = useState<"school" | "edit_school" | "student">("school");
+  const [modalType, setModalType] = useState<"school" | "edit_school" | "student" | "confirm_delete">("school");
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "school" | "student"; id: string } | null>(null);
   const [expandedSchoolId, setExpandedSchoolId] = useState<string | null>(null);
   const [expandedClassLevel, setExpandedClassLevel] = useState<string | null>(null);
   const [selectedSchoolIdForModal, setSelectedSchoolIdForModal] = useState<string | null>(null);
@@ -118,6 +122,7 @@ const AdminScreen = () => {
     shuttleLocation: null,
     studentsOnShuttle: [],
     loadingShuttleDetails: false,
+    movementPath: [],
   });
   const [schoolForm, setSchoolForm] = useState({
     id: "",
@@ -133,6 +138,9 @@ const AdminScreen = () => {
     shuttle_id: "",
     onboarded: false,
   });
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [currentTargetIndex, setCurrentTargetIndex] = useState(0);
+  const mapRef = useRef<MapView>(null);
 
   // --- Data Fetching ---
   const fetchData = useCallback(async () => {
@@ -159,7 +167,7 @@ const AdminScreen = () => {
 
       if (!studentsRes.ok) {
         const errorText = await studentsRes.text();
-        throw new Error(`Students: ${studentsRes.status} ${errorText}`);
+        throw new Error(`Students: ${schoolsRes.status} ${errorText}`);
       }
       const studentsData: Student[] = await studentsRes.json();
       if (!Array.isArray(studentsData)) throw new Error("Invalid format for student data.");
@@ -175,7 +183,7 @@ const AdminScreen = () => {
 
       if (!shuttlesRes.ok) {
         const errorText = await shuttlesRes.text();
-        throw new Error(`Shuttles: ${shuttlesRes.status} ${errorText}`);
+        throw new Error(`Shuttles: ${schoolsRes.status} ${errorText}`);
       }
       let shuttlesData: Shuttle[] = await shuttlesRes.json();
       if (!Array.isArray(shuttlesData)) throw new Error("Invalid format for shuttle data.");
@@ -214,7 +222,7 @@ const AdminScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [Config.API_BASE_URL]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -223,7 +231,13 @@ const AdminScreen = () => {
   // --- CRUD Operations ---
   const handleAddSchool = async () => {
     if (!schoolForm.school_name.trim()) {
-      Alert.alert("Error", "School name is required");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'School name is required',
+        position: 'top',
+        visibilityTime: 4000,
+      });
       return;
     }
     try {
@@ -245,20 +259,45 @@ const AdminScreen = () => {
       const data = await response.json();
       setSchools([...schools, data]);
       setModalVisible(false);
+      setModalType("school");
       setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
-      Alert.alert("Success", "School added successfully");
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'School added successfully',
+        position: 'top',
+        visibilityTime: 4000,
+      });
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to add school");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: err.message || 'Failed to add school',
+        position: 'top',
+        visibilityTime: 4000,
+      });
     }
   };
 
   const handleUpdateSchool = async () => {
     if (!schoolForm.school_name.trim()) {
-      Alert.alert("Error", "School name is required");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'School name is required',
+        position: 'top',
+        visibilityTime: 4000,
+      });
       return;
     }
     if (!schoolForm.id) {
-      Alert.alert("Error", "School ID missing");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'School ID missing',
+        position: 'top',
+        visibilityTime: 4000,
+      });
       return;
     }
     try {
@@ -280,37 +319,74 @@ const AdminScreen = () => {
       const data = await response.json();
       setSchools(schools.map((s) => (s.id === data.id ? data : s)));
       setModalVisible(false);
+      setModalType("school");
       setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
-      Alert.alert("Success", "School updated successfully");
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'School updated successfully',
+        position: 'top',
+        visibilityTime: 4000,
+      });
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to update school");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: err.message || 'Failed to update school',
+        position: 'top',
+        visibilityTime: 4000,
+      });
     }
   };
 
   const handleDeleteSchool = async (schoolId: string) => {
-    Alert.alert("Confirm Delete", "Delete this school and associated data?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const response = await fetch(`${Config.API_BASE_URL}/api/schools/${schoolId}/`, {
-              method: "DELETE",
-              headers: { Accept: "application/json" },
-            });
-            if (!response.ok && response.status !== 204) {
-              const errorText = await response.text();
-              throw new Error(`Failed to delete school: ${errorText}`);
-            }
-            await fetchData();
-            Alert.alert("Success", "School deleted");
-          } catch (err: any) {
-            Alert.alert("Error", err.message || "Failed to delete school");
-          }
-        },
-      },
-    ]);
+    setModalType("confirm_delete");
+    setDeleteTarget({ type: "school", id: schoolId });
+    setModalVisible(true);
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    setModalType("confirm_delete");
+    setDeleteTarget({ type: "student", id: studentId });
+    setModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      const url = deleteTarget.type === "school"
+        ? `${Config.API_BASE_URL}/api/schools/${deleteTarget.id}/`
+        : `${Config.API_BASE_URL}/api/students/${deleteTarget.id}/`;
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok && response.status !== 204) {
+        const errorText = await response.text();
+        throw new Error(`Failed to delete ${deleteTarget.type}: ${errorText}`);
+      }
+      await fetchData();
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: `${deleteTarget.type.charAt(0).toUpperCase() + deleteTarget.type.slice(1)} deleted successfully`,
+        position: 'top',
+        visibilityTime: 4000,
+      });
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: err.message || `Failed to delete ${deleteTarget.type}`,
+        position: 'top',
+        visibilityTime: 4000,
+      });
+    } finally {
+      setModalVisible(false);
+      setModalType("school");
+      setDeleteTarget(null);
+    }
   };
 
   const resetStudentForm = () => {
@@ -319,19 +395,43 @@ const AdminScreen = () => {
 
   const handleAddStudent = async () => {
     if (!selectedSchoolIdForModal || !selectedClassLevelForModal) {
-      Alert.alert("Error", "School/Class context missing.");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'School/Class context missing.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
       return;
     }
     if (!studentForm.student_name.trim()) {
-      Alert.alert("Error", "Student name required");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Student name required',
+        position: 'top',
+        visibilityTime: 4000,
+      });
       return;
     }
     if (!studentForm.student_code.trim()) {
-      Alert.alert("Error", "Student code required");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Student code required',
+        position: 'top',
+        visibilityTime: 4000,
+      });
       return;
     }
     if (studentForm.onboarded && !studentForm.shuttle_id) {
-      Alert.alert("Error", "Select shuttle if onboarded.");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Select shuttle if onboarded.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
       return;
     }
 
@@ -364,54 +464,49 @@ const AdminScreen = () => {
       }
       await fetchData();
       setModalVisible(false);
+      setModalType("school");
       resetStudentForm();
       setSelectedSchoolIdForModal(null);
       setSelectedClassLevelForModal(null);
-      Alert.alert("Success", "Student added successfully");
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Student added successfully',
+        position: 'top',
+        visibilityTime: 4000,
+      });
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to add student.");
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: err.message || 'Failed to add student.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
     }
   };
 
-  const handleDeleteStudent = async (studentId: string) => {
-    Alert.alert("Confirm Delete", "Delete this student?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const response = await fetch(`${Config.API_BASE_URL}/api/students/${studentId}/`, {
-              method: "DELETE",
-            });
-            if (!response.ok && response.status !== 204) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-            await fetchData();
-            Alert.alert("Success", "Student deleted successfully.");
-          } catch (err: any) {
-            Alert.alert("Error", err.message || "Failed to delete student.");
-          }
-        },
-      },
-    ]);
-  };
-
   // --- Shuttle Tracking Logic ---
-  const fetchShuttleDetails = async (regNumber: string) => {
+  const fetchShuttleDetails = async (regNumber: string, isPolling: boolean = false) => {
     const permission = Platform.OS === 'ios'
       ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
       : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
     const result = await request(permission);
     if (result !== 'granted') {
-      Alert.alert("Error", "Location permission denied");
+      if (!isPolling) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Location permission denied',
+          position: 'top',
+          visibilityTime: 4000,
+        });
+      }
       return;
     }
     setShuttleTrackingState((prev) => ({
       ...prev,
-      loadingShuttleDetails: true,
-      shuttleLocation: null,
-      studentsOnShuttle: [],
+      loadingShuttleDetails: !isPolling,
     }));
     try {
       const response = await fetch(`${Config.API_BASE_URL}/api/shuttle-tracking/`, {
@@ -426,8 +521,6 @@ const AdminScreen = () => {
       }
 
       const data = await response.json();
-      const studentsOnThisShuttle = students.filter((s) => s.shuttle === regNumber && s.onboarded);
-
       setShuttleTrackingState((prev) => ({
         ...prev,
         shuttleLocation: data.current_location
@@ -436,13 +529,220 @@ const AdminScreen = () => {
               longitude: Number(data.current_location.longitude),
             }
           : null,
-        studentsOnShuttle: studentsOnThisShuttle,
+        studentsOnShuttle: data.students || [],
         loadingShuttleDetails: false,
       }));
     } catch (err: any) {
-      Alert.alert("Error", `Failed to load shuttle details: ${err.message}`);
+      if (!isPolling) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: `Failed to load shuttle details: ${err.message}`,
+          position: 'top',
+          visibilityTime: 4000,
+        });
+      }
       setShuttleTrackingState((prev) => ({ ...prev, loadingShuttleDetails: false }));
     }
+  };
+
+  // Polling for real-time updates (disabled during simulation)
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    if (shuttleTrackingState.selectedShuttleRegNumber && !isSimulating) {
+      intervalId = setInterval(() => {
+        fetchShuttleDetails(shuttleTrackingState.selectedShuttleRegNumber!, true);
+      }, 10000); // Poll every 10 seconds
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [shuttleTrackingState.selectedShuttleRegNumber, isSimulating]);
+
+  // --- Route Fetching ---
+  const fetchRoute = async (
+    origin: { latitude: number; longitude: number },
+    destination: { latitude: number; longitude: number }
+  ): Promise<{ latitude: number; longitude: number }[]> => {
+    // Validate coordinates
+    if (
+      !isFinite(origin.latitude) || !isFinite(origin.longitude) ||
+      !isFinite(destination.latitude) || !isFinite(destination.longitude) ||
+      Math.abs(origin.latitude) > 90 || Math.abs(origin.longitude) > 180 ||
+      Math.abs(destination.latitude) > 90 || Math.abs(destination.longitude) > 180
+    ) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Coordinates',
+        text2: 'Origin or destination coordinates are invalid.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+      // Return a single point to avoid rendering
+      return [origin];
+    }
+
+    try {
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${Config.GOOGLE_MAPS_API_KEY}`;
+      console.log('Fetching route with URL:', url); // Debug API request
+      const response = await fetch(url);
+      const data = await response.json();
+
+      console.log('Directions API response:', JSON.stringify(data, null, 2)); // Debug response
+
+      if (data.status !== 'OK') {
+        const errorMessage = data.error_message || data.status;
+        throw new Error(`Directions API error: ${errorMessage}`);
+      }
+
+      const encodedPolyline = data.routes[0]?.overview_polyline?.points;
+      if (!encodedPolyline) {
+        throw new Error('No polyline data returned from Directions API');
+      }
+
+      const points = polyline.decode(encodedPolyline, 5);
+      const path = points.map(([latitude, longitude]) => ({ latitude, longitude }));
+      console.log('Decoded path points:', path); // Debug decoded points
+      return path;
+    } catch (err: any) {
+      console.error('Route fetch error:', err.message); // Debug error
+      Toast.show({
+        type: 'error',
+        text1: 'Route Error',
+        text2: `Failed to fetch route: ${err.message}. Using straight line.`,
+        position: 'top',
+        visibilityTime: 6000,
+      });
+      // Fallback to linear interpolation
+      const steps = 10;
+      const path: { latitude: number; longitude: number }[] = [];
+      for (let i = 0; i <= steps; i++) {
+        const fraction = i / steps;
+        path.push({
+          latitude: origin.latitude + (destination.latitude - origin.latitude) * fraction,
+          longitude: origin.longitude + (destination.longitude - origin.longitude) * fraction,
+        });
+      }
+      return path;
+    }
+  };
+
+  // --- Simulation Logic ---
+  const simulateShuttleMovement = async () => {
+    if (isSimulating) {
+      setIsSimulating(false);
+      setCurrentTargetIndex(0);
+      setShuttleTrackingState((prev) => ({ ...prev, movementPath: [] }));
+      return;
+    }
+
+    const validStudents = shuttleTrackingState.studentsOnShuttle.filter(
+      (student) =>
+        student.point_latitude != null &&
+        student.point_longitude != null &&
+        isFinite(student.point_latitude) &&
+        isFinite(student.point_longitude) &&
+        Math.abs(student.point_latitude) <= 90 &&
+        Math.abs(student.point_longitude) <= 180
+    );
+
+    if (validStudents.length === 0) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No students with valid pickup points to simulate movement.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+      return;
+    }
+
+    if (!shuttleTrackingState.shuttleLocation) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Shuttle location unavailable.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+      return;
+    }
+
+    console.log('Starting simulation with students:', validStudents.map(s => ({
+      name: s.student_name,
+      latitude: s.point_latitude,
+      longitude: s.point_longitude,
+    })));
+
+    setIsSimulating(true);
+    setCurrentTargetIndex(0);
+    let currentPath = [shuttleTrackingState.shuttleLocation];
+
+    const moveToNextPoint = async (index: number) => {
+      if (index >= validStudents.length) {
+        setIsSimulating(false);
+        setCurrentTargetIndex(0);
+        Toast.show({
+          type: 'success',
+          text1: 'Simulation Complete',
+          text2: 'Shuttle has visited all pickup points.',
+          position: 'top',
+          visibilityTime: 4000,
+        });
+        return;
+      }
+
+      const student = validStudents[index];
+      const target = { latitude: student.point_latitude!, longitude: student.point_longitude! };
+
+      // Fetch full route to target
+      const route = await fetchRoute(shuttleTrackingState.shuttleLocation!, target);
+      console.log(`Route to student ${student.student_name}:`, route);
+
+      // Append the entire route to the path
+      currentPath = [...currentPath, ...route.slice(1)]; // Exclude first point to avoid duplication
+      setShuttleTrackingState((prev) => ({
+        ...prev,
+        movementPath: currentPath,
+      }));
+
+      // Simulate movement along the route
+      let currentStep = 0;
+      const intervalId = setInterval(() => {
+        if (!isSimulating || currentStep >= route.length) {
+          clearInterval(intervalId);
+          setShuttleTrackingState((prev) => ({
+            ...prev,
+            shuttleLocation: target,
+            movementPath: currentPath, // Ensure full path is retained
+          }));
+          setCurrentTargetIndex(index + 1);
+          moveToNextPoint(index + 1);
+          return;
+        }
+
+        const newPosition = route[currentStep];
+        setShuttleTrackingState((prev) => {
+          const updatedPath = currentPath.slice(0, currentPath.indexOf(newPosition) + 1);
+          console.log(`Updating shuttle position:`, newPosition, `Path length:`, updatedPath.length);
+          mapRef.current?.animateToRegion({
+            latitude: newPosition.latitude,
+            longitude: newPosition.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }, 500);
+          return {
+            ...prev,
+            shuttleLocation: newPosition,
+            movementPath: updatedPath,
+          };
+        });
+
+        currentStep++;
+      }, 500); // Move every 500ms
+    };
+
+    moveToNextPoint(0);
   };
 
   // --- UI Helpers ---
@@ -524,7 +824,7 @@ const AdminScreen = () => {
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => {
-                setCurrentStep("school");
+                setModalType("school");
                 setSchoolForm({ id: "", school_name: "", school_address: "", latitude: "", longitude: "" });
                 setModalVisible(true);
               }}
@@ -618,7 +918,7 @@ const AdminScreen = () => {
                                         </Text>
                                         <View style={styles.actionIcons}>
                                           <TouchableOpacity onPress={() => handleDeleteStudent(student.id)}>
-                                            <Icon name="delete" size={18} color="#dc3545" />
+                                            <Icon name="delete" size= {18} color="#dc3545" />
                                           </TouchableOpacity>
                                         </View>
                                       </View>
@@ -654,7 +954,7 @@ const AdminScreen = () => {
                                 <TouchableOpacity
                                   style={styles.inlineAddButton}
                                   onPress={() => {
-                                    setCurrentStep("student");
+                                    setModalType("student");
                                     resetStudentForm();
                                     setSelectedSchoolIdForModal(school.id);
                                     setSelectedClassLevelForModal(classLevel);
@@ -677,7 +977,7 @@ const AdminScreen = () => {
                         <TouchableOpacity
                           style={styles.actionButton}
                           onPress={() => {
-                            setCurrentStep("edit_school");
+                            setModalType("edit_school");
                             setSchoolForm({
                               id: school.id,
                               school_name: school.school_name,
@@ -790,6 +1090,7 @@ const AdminScreen = () => {
                     selectedShuttleRegNumber: null,
                     shuttleLocation: null,
                     studentsOnShuttle: [],
+                    movementPath: [],
                   }))
                 }
               >
@@ -802,26 +1103,62 @@ const AdminScreen = () => {
               <View style={styles.mapPlaceholder}>
                 {shuttleTrackingState.shuttleLocation ? (
                   <MapView
+                    ref={mapRef}
                     style={styles.map}
                     initialRegion={{
                       latitude: shuttleTrackingState.shuttleLocation.latitude,
                       longitude: shuttleTrackingState.shuttleLocation.longitude,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
+                      latitudeDelta: 0.05,
+                      longitudeDelta: 0.05,
                     }}
                   >
-                    <Marker coordinate={shuttleTrackingState.shuttleLocation}>
-                      <View style={{ alignItems: 'center' }}>
-                        <Text style={{ fontWeight: 'bold' }}>
-                          Shuttle {shuttleTrackingState.selectedShuttleRegNumber}
-                        </Text>
-                        <Text>Current Location</Text>
-                      </View>
-                    </Marker>
+                    {/* Shuttle Marker */}
+                    <Marker
+                      coordinate={shuttleTrackingState.shuttleLocation}
+                      title={`Shuttle ${shuttleTrackingState.selectedShuttleRegNumber}`}
+                      description="Current Location"
+                      pinColor="blue"
+                    />
+
+                    {/* Student Pickup Points */}
+                    {shuttleTrackingState.studentsOnShuttle
+                      .filter(student => student.point_latitude != null && student.point_longitude != null)
+                      .map(student => (
+                        <Marker
+                          key={student.id}
+                          coordinate={{
+                            latitude: student.point_latitude!,
+                            longitude: student.point_longitude!,
+                          }}
+                          title={`${student.student_name} (${student.student_code})`}
+                          description="Pickup Point"
+                          pinColor="red"
+                        />
+                      ))}
+
+                    {/* Shuttle Movement Path */}
+                    {shuttleTrackingState.movementPath.length > 1 && (
+                      <Polyline
+                        coordinates={shuttleTrackingState.movementPath}
+                        strokeColor="#0000FF"
+                        strokeWidth={3}
+                      />
+                    )}
                   </MapView>
                 ) : (
                   <Text>Location data unavailable.</Text>
                 )}
+              </View>
+
+              <View style={{ alignItems: 'flex-end', padding: 10 }}>
+                <TouchableOpacity
+                  style={[styles.button, isSimulating ? styles.dangerButton : styles.primaryButton, { width: 150 }]}
+                  onPress={simulateShuttleMovement}
+                >
+                  <Text style={styles.buttonText}>
+                    {isSimulating ? "Stop Simulation" : "Simulate Movement"}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               <Text style={styles.sectionTitle}>Students Onboard</Text>
@@ -848,215 +1185,238 @@ const AdminScreen = () => {
         transparent={true}
         onRequestClose={() => {
           setModalVisible(false);
+          setModalType("school");
+          setDeleteTarget(null);
           resetStudentForm();
           setSelectedClassLevelForModal(null);
           setSelectedSchoolIdForModal(null);
-          setCurrentStep("school");
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {currentStep === "school" && "Add New School"}
-                {currentStep === "edit_school" && "Edit School"}
-                {currentStep === "student" && "Add New Student"}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setModalVisible(false);
-                  resetStudentForm();
-                  setSelectedClassLevelForModal(null);
-                  setSelectedSchoolIdForModal(null);
-                  setCurrentStep("school");
-                }}
-              >
-                <Icon name="close" size={24} color="#6c757d" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <View style={styles.modalContent}>
-                {(currentStep === "school" || currentStep === "edit_school") && (
-                  <>
-                    <Text style={styles.inputLabel}>School Name*</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter school name"
-                      value={schoolForm.school_name}
-                      onChangeText={(t) => setSchoolForm((f) => ({ ...f, school_name: t }))}
-                    />
-                    <Text style={styles.inputLabel}>Address</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter address (optional)"
-                      value={schoolForm.school_address}
-                      onChangeText={(t) => setSchoolForm((f) => ({ ...f, school_address: t }))}
-                    />
-                    <Text style={styles.inputLabel}>Latitude</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Latitude (optional)"
-                      value={schoolForm.latitude}
-                      onChangeText={(t) =>
-                        setSchoolForm((f) => ({ ...f, latitude: t.replace(/[^0-9.-]/g, "") }))
-                      }
-                      keyboardType="numeric"
-                    />
-                    <Text style={styles.inputLabel}>Longitude</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Longitude (optional)"
-                      value={schoolForm.longitude}
-                      onChangeText={(t) =>
-                        setSchoolForm((f) => ({ ...f, longitude: t.replace(/[^0-9.-]/g, "") }))
-                      }
-                      keyboardType="numeric"
-                    />
-                    <TouchableOpacity
-                      style={[styles.button, styles.primaryButton]}
-                      onPress={currentStep === "school" ? handleAddSchool : handleUpdateSchool}
-                    >
-                      <Text style={styles.buttonText}>
-                        {currentStep === "school" ? "Save School" : "Update School"}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                {currentStep === "student" && (
-                  <>
-                    <Text style={styles.contextLabel}>School:</Text>
-                    <Text style={styles.contextValue}>
-                      {schools.find((s) => s.id === selectedSchoolIdForModal)?.school_name || "N/A"}
-                    </Text>
-                    <Text style={styles.contextLabel}>Class:</Text>
-                    <Text style={styles.contextValue}>
-                      {CLASS_CHOICES_MAP[selectedClassLevelForModal || ""] || "N/A"}
-                    </Text>
-                    <View style={styles.separatorThinModal} />
-
-                    <Text style={styles.inputLabel}>Student Name*</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter full name"
-                      value={studentForm.student_name}
-                      onChangeText={(t) => setStudentForm((f) => ({ ...f, student_name: t }))}
-                    />
-                    <Text style={styles.inputLabel}>Student Code*</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter unique student code"
-                      value={studentForm.student_code}
-                      onChangeText={(t) =>
-                        setStudentForm((f) => ({ ...f, student_code: t.toUpperCase() }))
-                      }
-                      autoCapitalize="characters"
-                    />
-
-                    <Text style={styles.inputLabel}>Parent</Text>
-                    <View style={styles.pickerContainer}>
-                      <Picker
-                        selectedValue={studentForm.parent_id}
-                        onValueChange={(itemValue) =>
-                          setStudentForm((f) => ({ ...f, parent_id: itemValue as string }))
-                        }
-                        style={styles.pickerStyle}
-                        prompt="Select Parent"
-                      >
-                        <Picker.Item label="- Select Parent -" value="" />
-                        {parents.map((parent) => (
-                          <Picker.Item
-                            key={parent.id}
-                            label={`${parent.parent_name} (${parent.parent_phone})`}
-                            value={parent.id}
-                          />
-                        ))}
-                      </Picker>
-                    </View>
-
-                    <View style={styles.switchContainer}>
-                      <Text style={styles.switchLabel}>Onboarded:</Text>
-                      <TouchableOpacity
-                        style={[
-                          styles.switch,
-                          { backgroundColor: studentForm.onboarded ? "#28a745" : "#dc3545" },
-                        ]}
-                        onPress={() =>
-                          setStudentForm((f) => ({
-                            ...f,
-                            onboarded: !f.onboarded,
-                            shuttle_id: !f.onboarded ? f.shuttle_id : "",
-                          }))
-                        }
-                      >
-                        <Text style={styles.switchText}>{studentForm.onboarded ? "Yes" : "No"}</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {studentForm.onboarded && (
-                      <>
-                        <Text style={styles.inputLabel}>Shuttle* (if Onboarded):</Text>
-                        <View style={styles.pickerContainer}>
-                          <Picker
-                            selectedValue={studentForm.shuttle_id}
-                            onValueChange={(itemValue) =>
-                              setStudentForm((f) => ({ ...f, shuttle_id: itemValue as string }))
-                            }
-                            style={styles.pickerStyle}
-                            enabled={getShuttlesForSelectedSchoolInModal().length > 0}
-                            prompt="Select Shuttle"
-                          >
-                            <Picker.Item
-                              label={
-                                getShuttlesForSelectedSchoolInModal().length > 0
-                                  ? "- Select Shuttle -"
-                                  : "- No Shuttles for this School -"
-                              }
-                              value=""
-                            />
-                            {getShuttlesForSelectedSchoolInModal().map((shuttle) => (
-                              <Picker.Item
-                                key={shuttle.id}
-                                label={`${shuttle.reg_number} (${shuttle.is_active ? "Active" : "Inactive"})`}
-                                value={shuttle.id}
-                              />
-                            ))}
-                          </Picker>
-                        </View>
-                      </>
-                    )}
-
-                    <TouchableOpacity
-                      style={[styles.button, styles.primaryButton, { marginTop: 10 }]}
-                      onPress={handleAddStudent}
-                    >
-                      <Icon name="save" size={18} color="white" style={{ marginRight: 8 }} />
-                      <Text style={styles.buttonText}>Save Student</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-
+          {modalType === "confirm_delete" && deleteTarget ? (
+            <View style={styles.confirmModalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Confirm Deletion</Text>
                 <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
                   onPress={() => {
                     setModalVisible(false);
+                    setModalType("school");
+                    setDeleteTarget(null);
+                  }}
+                >
+                  <Icon name="close" size={24} color="#6c757d" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalContent}>
+                <Text style={styles.confirmModalText}>
+                  Are you sure you want to delete this {deleteTarget.type}?
+                  {deleteTarget.type === "school" && " This will remove all associated data."}
+                </Text>
+                <View style={styles.confirmModalButtons}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.cancelButton]}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setModalType("school");
+                      setDeleteTarget(null);
+                    }}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, styles.confirmButton]}
+                    onPress={confirmDelete}
+                  >
+                    <Text style={styles.buttonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {modalType === "school" && "Add New School"}
+                  {modalType === "edit_school" && "Edit School"}
+                  {modalType === "student" && "Add New Student"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModalVisible(false);
+                    setModalType("school");
                     resetStudentForm();
                     setSelectedClassLevelForModal(null);
                     setSelectedSchoolIdForModal(null);
-                    setCurrentStep("school");
                   }}
                 >
-                  <Icon name="cancel" size={18} color="white" style={{ marginRight: 8 }} />
-                  <Text style={styles.buttonText}>Cancel</Text>
+                  <Icon name="close" size={24} color="#6c757d" />
                 </TouchableOpacity>
               </View>
-            </ScrollView>
-          </View>
+              <ScrollView keyboardShouldPersistTaps="handled">
+                <View style={styles.modalContent}>
+                  {(modalType === "school" || modalType === "edit_school") && (
+                    <>
+                      <Text style={styles.inputLabel}>School Name*</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter school name"
+                        value={schoolForm.school_name}
+                        onChangeText={(t) => setSchoolForm((f) => ({ ...f, school_name: t }))}
+                      />
+                      <Text style={styles.inputLabel}>Address</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter address (optional)"
+                        value={schoolForm.school_address}
+                        onChangeText={(t) => setSchoolForm((f) => ({ ...f, school_address: t }))}
+                      />
+                      <Text style={styles.inputLabel}>Latitude</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Latitude (optional)"
+                        value={schoolForm.latitude}
+                        onChangeText={(t) =>
+                          setSchoolForm((f) => ({ ...f, latitude: t.replace(/[^0-9.-]/g, "") }))
+                        }
+                        keyboardType="numeric"
+                      />
+                      <Text style={styles.inputLabel}>Longitude</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Longitude (optional)"
+                        value={schoolForm.longitude}
+                        onChangeText={(t) =>
+                          setSchoolForm((f) => ({ ...f, longitude: t.replace(/[^0-9.-]/g, "") }))
+                        }
+                        keyboardType="numeric"
+                      />
+                      <TouchableOpacity
+                        style={[styles.button, styles.primaryButton]}
+                        onPress={modalType === "school" ? handleAddSchool : handleUpdateSchool}
+                      >
+                        <Text style={styles.buttonText}>
+                          {modalType === "school" ? "Save School" : "Update School"}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {modalType === "student" && (
+                    <>
+                      <Text style={styles.contextLabel}>School:</Text>
+                      <Text style={styles.contextValue}>
+                        {schools.find((s) => s.id === selectedSchoolIdForModal)?.school_name || "N/A"}
+                      </Text>
+                      <Text style={styles.contextLabel}>Class:</Text>
+                      <Text style={styles.contextValue}>
+                        {CLASS_CHOICES_MAP[selectedClassLevelForModal || ""] || "N/A"}
+                      </Text>
+                      <View style={styles.separatorThinModal} />
+
+                      <Text style={styles.inputLabel}>Student Name*</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter full name"
+                        value={studentForm.student_name}
+                        onChangeText={(t) => setStudentForm((f) => ({ ...f, student_name: t }))}
+                      />
+                      <Text style={styles.inputLabel}>Student Code*</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter unique student code"
+                        value={studentForm.student_code}
+                        onChangeText={(t) =>
+                          setStudentForm((f) => ({ ...f, student_code: t.toUpperCase() }))
+                        }
+                        autoCapitalize="characters"
+                      />
+
+                      <Text style={styles.inputLabel}>Parent</Text>
+                      <View style={styles.pickerContainer}>
+                        <Picker
+                          selectedValue={studentForm.parent_id}
+                          onValueChange={(itemValue) =>
+                            setStudentForm((f) => ({ ...f, parent_id: itemValue as string }))
+                          }
+                          style={styles.pickerStyle}
+                          prompt="Select Parent"
+                        >
+                          <Picker.Item label="- Select Parent -" value="" />
+                          {parents.map((parent) => (
+                            <Picker.Item
+                              key={parent.id}
+                              label={`${parent.parent_name} (${parent.parent_phone})`}
+                              value={parent.id}
+                            />
+                          ))}
+                        </Picker>
+                      </View>
+
+                      <View style={styles.switchContainer}>
+                        <Text style={styles.switchLabel}>Onboarded:</Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.switch,
+                            { backgroundColor: studentForm.onboarded ? "#28a745" : "#dc3545" },
+                          ]}
+                          onPress={() =>
+                            setStudentForm((f) => ({
+                              ...f,
+                              onboarded: !f.onboarded,
+                              shuttle_id: !f.onboarded ? f.shuttle_id : "",
+                            }))
+                          }
+                        >
+                          <Text style={styles.switchText}>{studentForm.onboarded ? "Yes" : "No"}</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {studentForm.onboarded && (
+                        <>
+                          <Text style={styles.inputLabel}>Shuttle* (if Onboarded):</Text>
+                          <View style={styles.pickerContainer}>
+                            <Picker
+                              selectedValue={studentForm.shuttle_id}
+                              onValueChange={(itemValue) =>
+                                setStudentForm((f) => ({ ...f, shuttle_id: itemValue as string }))
+                              }
+                              style={styles.pickerStyle}
+                              enabled={getShuttlesForSelectedSchoolInModal().length > 0}
+                              prompt="Select Shuttle"
+                            >
+                              <Picker.Item
+                                label={
+                                  getShuttlesForSelectedSchoolInModal().length > 0
+                                    ? "- Select Shuttle -"
+                                    : "- No Shuttles for this School -"
+                                }
+                                value=""
+                              />
+                              {getShuttlesForSelectedSchoolInModal().map((shuttle) => (
+                                <Picker.Item
+                                  key={shuttle.id}
+                                  label={`${shuttle.reg_number} (${shuttle.is_active ? "Active" : "Inactive"})`}
+                                  value={shuttle.id}
+                                />
+                              ))}
+                            </Picker>
+                          </View>
+                        </>
+                      )}
+
+                      <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleAddStudent}>
+                        <Text style={styles.buttonText}>Save Student</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+          )}
         </View>
       </Modal>
     </View>
   );
 };
-
 
 export default AdminScreen;

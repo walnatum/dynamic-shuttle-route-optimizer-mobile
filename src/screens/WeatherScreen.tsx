@@ -30,7 +30,7 @@ const WeatherScreen = () => {
   const [showHourlyData, setShowHourlyData] = useState(false);
   const [marker, setMarker] = useState(null);
   const mapRef = useRef(null);
-  const apiKey = 'e6be8acb4dee4f0094f4ad3e94645f72'; // Weatherstack API key
+  const apiKey = 'b2f04b14372741d51adf20e82452926d'; // Weatherstack API key
 
   // Fetch weather data from Weatherstack
   const fetchWeatherData = async (location) => {

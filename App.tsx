@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "react-native-gesture-handler";
+import Toast from "react-native-toast-message";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -13,7 +14,7 @@ import ListScreen from "./src/screens/ListScreen";
 import LogScreen from "./src/screens/LogScreen";
 import ParentLogScreen from "./src/screens/ParentLogScreen";
 import AdminLoginScreen from "./src/screens/AdminLoginScreen";
-import TrafficScreen from "./src/screens/Trafficscreen";
+import TrafficScreen from "./src/screens/TrafficScreen";
 import AdminScreen from "./src/screens/AdminScreen";
 import RouteScreen from "./src/screens/RouteScreen";
 import WeatherScreen from "./src/screens/WeatherScreen";
@@ -31,6 +32,7 @@ export type RootStackParamList = {
   TrafficScreen: undefined;
   AdminScreen: undefined;
   RouteScreen: undefined;
+  WeatherScreen: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -53,9 +55,9 @@ function App() {
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
           <Stack.Screen name="RouteScreen" component={RouteScreen} />
           <Stack.Screen name="WeatherScreen" component={WeatherScreen} />
-
         </Stack.Navigator>
       </NavigationContainer>
+      <Toast />
     </SafeAreaProvider>
   );
 }

@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
       borderRadius: 8,
     },
     map: {
-      ...StyleSheet.absoluteFillObject, // Ensures map fills the placeholder
+      ...StyleSheet.absoluteFillObject,
     },
     studentItemSimple: {
       flexDirection: "row",
@@ -306,6 +306,12 @@ const styles = StyleSheet.create({
       borderRadius: 8,
       overflow: "hidden",
     },
+    confirmModalContainer: {
+      width: "80%",
+      backgroundColor: "white",
+      borderRadius: 8,
+      overflow: "hidden",
+    },
     modalHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -320,6 +326,16 @@ const styles = StyleSheet.create({
     },
     modalContent: {
       padding: 20,
+    },
+    confirmModalText: {
+      fontSize: 16,
+      color: "#343a40",
+      marginBottom: 20,
+      textAlign: "center",
+    },
+    confirmModalButtons: {
+      flexDirection: "row",
+      justifyContent: "space-between",
     },
     inputLabel: {
       fontSize: 14,
@@ -390,8 +406,18 @@ const styles = StyleSheet.create({
     secondaryButton: {
       backgroundColor: "#6f42c1",
     },
+    dangerButton: {
+      backgroundColor: "#dc3545",
+    },
+    confirmButton: {
+      backgroundColor: "#dc3545",
+      flex: 1,
+      marginLeft: 10,
+    },
     cancelButton: {
       backgroundColor: "#6c757d",
+      flex: 1,
+      marginRight: 10,
     },
     buttonText: {
       color: "white",
@@ -399,8 +425,6 @@ const styles = StyleSheet.create({
       fontSize: 16,
       fontWeight: "bold",
     },
-  });
+});
 
-
-  export default styles; // Use default export
-  
+export default styles;
