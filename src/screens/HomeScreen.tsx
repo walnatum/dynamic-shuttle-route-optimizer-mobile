@@ -761,15 +761,6 @@ const HomeScreen = () => {
                 {syncStatus}
               </Text>
             </View>
-            <TouchableOpacity
-              style={[styles.generateButton, isGenerating && styles.disabledButton]}
-              onPress={generateCode}
-              disabled={isGenerating}
-            >
-              <Text style={styles.generateButtonText}>
-                {isGenerating ? "Generating..." : "Generate Verification Code"}
-              </Text>
-            </TouchableOpacity>
             {generatedCode && (
               <View style={styles.codeContainer}>
                 <Text style={styles.generatedCodeText}>Code: {generatedCode}</Text>
@@ -778,12 +769,23 @@ const HomeScreen = () => {
                 )}
               </View>
             )}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowAssistantOverlay(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.generateButton, isGenerating && styles.disabledButton]}
+                onPress={generateCode}
+                disabled={isGenerating}
+              >
+                <Text style={styles.generateButtonText}>
+                  {isGenerating ? "Generating..." : "Generate Verification Code"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowAssistantOverlay(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
           </LinearGradient>
         </View>
       )}

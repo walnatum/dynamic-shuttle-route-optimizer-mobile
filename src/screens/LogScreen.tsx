@@ -19,7 +19,7 @@ export type RootStackParamList = {
   HomeScreen: { driverCode: string } | undefined;
   AssistantScreen: { tempCode: string; driverCode: string };
   ParentLogScreen: undefined;
-  AssistantLogScreen: undefined;
+  AdminLoginScreen: undefined;
   RouteScreen: undefined;
 };
 
@@ -108,7 +108,7 @@ const LogScreen = () => {
 
   const goToAdmin = () => {
     try {
-      navigation.navigate("AssistantLogScreen");
+      navigation.navigate("AdminLoginScreen");
     } catch (error) {
       console.error("Navigation error:", error);
       Alert.alert("Navigation Error", "Could not navigate to Admin screen");

@@ -303,10 +303,8 @@ const styles = StyleSheet.create({
     },
     overlayContent: {
       width: 280,
-      height: 280,
       borderRadius: 20,
       alignItems: "center",
-      justifyContent: "space-around",
       padding: 20,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 5 },
@@ -332,7 +330,7 @@ const styles = StyleSheet.create({
     generateButton: {
       backgroundColor: "#007AFF",
       paddingVertical: 12,
-      paddingHorizontal: 30,
+      paddingHorizontal: 20, 
       borderRadius: 25,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
@@ -347,7 +345,7 @@ const styles = StyleSheet.create({
     codeContainer: {
       marginTop: 20,
       alignItems: "center",
-      marginBottom: 100,
+      marginBottom: 20, 
     },
     generatedCodeText: {
       fontSize: 24,
@@ -361,15 +359,14 @@ const styles = StyleSheet.create({
     },
     closeButton: {
       backgroundColor: "#FF2D55",
-      paddingVertical: 10,
+      paddingVertical: 12,
       paddingHorizontal: 20,
       borderRadius: 25,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.3,
       elevation: 5,
-      position: "absolute",
-      bottom: 20,
+      // Remove absolute positioning
     },
     closeButtonText: {
       color: "#fff",
@@ -428,6 +425,8 @@ const styles = StyleSheet.create({
     buttonContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
+      width: "100%",
+      marginTop: 20,
     },
     actionButton: {
       flex: 1,
