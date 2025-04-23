@@ -18,6 +18,7 @@ import TrafficScreen from "./src/screens/TrafficScreen";
 import AdminScreen from "./src/screens/AdminScreen";
 import RouteScreen from "./src/screens/RouteScreen";
 import WeatherScreen from "./src/screens/WeatherScreen";
+import CrashScreen from "./src/screens/CrashScreen";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -55,6 +56,9 @@ function App() {
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
           <Stack.Screen name="RouteScreen" component={RouteScreen} />
           <Stack.Screen name="WeatherScreen" component={WeatherScreen} />
+          <Stack.Screen name="CrashScreen" component={CrashScreen} />
+
+
         </Stack.Navigator>
       </NavigationContainer>
       <Toast />
