@@ -924,11 +924,11 @@ const styles = StyleSheet.create({
       color: '#1A3CFF',
       letterSpacing: 1,
     },
-    buttonContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 16,
-    },
+    // buttonContainer: {
+    //   flexDirection: 'row',
+    //   justifyContent: 'space-between',
+    //   marginTop: 16,
+    // },
     generateButton: {
       flex: 1,
       backgroundColor: '#1A3CFF', // Brighter blue for better contrast
@@ -968,18 +968,6 @@ const styles = StyleSheet.create({
       fontWeight: '600',
       fontSize: 16,
     },
-    // buttonIcon: {
-    //   marginRight: 8,
-    // },
-    // buttonIcon: {
-    //   marginRight: 8,
-    // },
-    // buttonText: {
-    //   color: "white",
-    //   fontWeight: "600",
-    //   fontSize: 16,
-    //   marginRight: 10,
-    // },
     searchOverlay: {
       position: "absolute",
       top: 0,
@@ -1024,12 +1012,7 @@ const styles = StyleSheet.create({
       color: "#666",
       marginBottom: 10,
     },
-    // buttonContainer: {
-    //   flexDirection: "row",
-    //   justifyContent: "space-between",
-    //   width: "100%",
-    //   marginTop: 20,
-    // },
+
     actionButton: {
       flex: 1,
       flexDirection: "row",
@@ -1052,15 +1035,7 @@ const styles = StyleSheet.create({
       justifyContent: "space-between",
       marginBottom: 10,
     },
-    // timeButton: {
-    //   flex: 1,
-    //   backgroundColor: "#f0f0f0",
-    //   paddingVertical: 8,
-    //   paddingHorizontal: 10,
-    //   borderRadius: 10,
-    //   marginHorizontal: 5,
-    //   alignItems: "center",
-    // },
+
     timeButtonActive: {
       backgroundColor: "#007AFF",
     },
@@ -1095,8 +1070,6 @@ const styles = StyleSheet.create({
       color: "#333",
       fontWeight: "600",
     },
-
-
 
 
     buttonContainer: {
