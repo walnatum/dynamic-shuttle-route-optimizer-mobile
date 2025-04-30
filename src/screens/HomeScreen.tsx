@@ -12,6 +12,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  ActivityIndicator, 
 } from "react-native";
 import { useNavigation, useRoute, RouteProp, NavigationProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-native-maps";
@@ -570,17 +571,38 @@ const HomeScreen = () => {
           style={styles.searchImageContainer} 
           onPress={searchPlaces}
         >
-          <Icon name="search" size={30} color="#666" />
+          {/* <Icon name="search" size={30} color="#666" /> */}
+          <Icon name="search" size={30} color="#0000FF" />
+
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.photoIconContainer}
           onPress={() => setShowProfileOverlay(true)}
         >
-          <Icon name="person" size={30} color="#666" />
+          <Icon name="person" size={30} color="#0000FF" />
         </TouchableOpacity>
       </View>
+      // Container for both buttons to align them side by side
+      <View style={styles.buttonContainer}>
+        {!showRouteInput && !travelTimesByMode && (
+          <TouchableOpacity 
+            style={styles.routeWiseButton} 
+            onPress={() => setShowRouteInput(true)}
+          >
+            <Icon name="map" size={24} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>RouteWise</Text>
+          </TouchableOpacity>
+        )}
 
-      <TouchableOpacity
+        <TouchableOpacity
+          style={styles.assistantButton}
+          onPress={() => setShowAssistantOverlay(true)}
+        >
+          <Icon name="assistant" size={24} color="#007AFF" style={styles.buttonIcon} />
+          <Text style={styles.assistantButtonText}>Assistant</Text>
+        </TouchableOpacity>
+      </View>
+      {/* <TouchableOpacity
         style={styles.assistantButton}
         onPress={() => setShowAssistantOverlay(true)}
       >
@@ -591,9 +613,9 @@ const HomeScreen = () => {
         <TouchableOpacity style={styles.routeWiseButton} onPress={() => setShowRouteInput(true)}>
           <Text style={styles.buttonText}>RouteWise</Text>
         </TouchableOpacity>
-      )}
+      )} */}
 
-      {showRouteInput && !travelTimesByMode && !hideInputs && (
+      {/* {showRouteInput && !travelTimesByMode && !hideInputs && (
         <View style={styles.routeWiseOverlay}>
           <TouchableOpacity
             style={styles.cancelIcon}
@@ -673,7 +695,309 @@ const HomeScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
-      )}
+      )} */}
+
+
+{/* {showRouteInput && !travelTimesByMode && !hideInputs && (
+  <View style={styles.routeWiseOverlay}>
+    <View style={styles.inputContainer}>
+      <View style={styles.inputWrapper}>
+        <Text style={styles.inputLabel}>Current Location</Text>
+        <TextInput
+          style={styles.beautifiedInput}
+          placeholder="Current Location"
+          value={start}
+          onChangeText={setStart}
+          placeholderTextColor="#888"
+          returnKeyType="next"
+        />
+      </View>
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.beautifiedInput}
+          placeholder="Enter destination..."
+          value={end}
+          onChangeText={setEnd}
+          placeholderTextColor="#888"
+          returnKeyType="go"
+          onSubmitEditing={calculateRoute}
+        />
+      </View>
+      
+      <View style={styles.modeButtonRow}>
+        <TouchableOpacity style={[styles.modeButton, styles.modeButtonActive]} onPress={() => calculateRoute()}>
+          <Icon name="directions-car" size={24} color="#fff" />
+          <Text style={styles.modeButtonTextActive}>Drive</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-walk" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Walk</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-transit" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Transit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-bike" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Bike</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)} */}
+
+
+{/* 
+{showRouteInput && !travelTimesByMode && !hideInputs && (
+  <View style={styles.routeWiseOverlay}>
+    <View style={styles.inputContainer}>
+      <View style={styles.inputWrapper}>
+        <Text style={styles.inputLabel}>Current Location</Text>
+        <TextInput
+          style={styles.beautifiedInput}
+          placeholder="Current Location"
+          value={start}
+          onChangeText={setStart}
+          placeholderTextColor="#888"
+          returnKeyType="next"
+        />
+      </View>
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.beautifiedInput}
+          placeholder="Enter destination..."
+          value={end}
+          onChangeText={setEnd}
+          placeholderTextColor="#888"
+          returnKeyType="go"
+          onSubmitEditing={calculateRoute}
+        />
+      </View>
+      
+      <View style={styles.modeButtonRow}>
+        <TouchableOpacity style={[styles.modeButton, styles.modeButtonActive]} onPress={() => calculateRoute()}>
+          <Icon name="directions-car" size={24} color="#fff" />
+          <Text style={styles.modeButtonTextActive}>Drive</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-walk" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Walk</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-transit" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Transit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-bike" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Bike打包
+
+Bike</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.timeButtonRow}>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("morning")}
+        >
+          <Text style={styles.buttonText}>Morning</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("afternoon")}
+        >
+          <Text style={styles.buttonText}>Afternoon</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("evening")}
+        >
+          <Text style={styles.buttonText}>Evening</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)} */}
+
+{/* // RouteWise Overlay (shown when showRouteInput is true, no travel times are calculated, and inputs are not hidden)
+{showRouteInput && !travelTimesByMode && !hideInputs && (
+  <View style={styles.routeWiseOverlay}>
+    <TouchableOpacity
+      style={styles.cancelIcon}
+      onPress={() => setShowRouteInput(false)}
+    >
+      <Icon name="cancel" size={30} color="#FF2D55" />
+    </TouchableOpacity>
+    <View style={styles.inputContainer}>
+      <View style={styles.inputWrapper}>
+        <Text style={styles.inputLabel}>Current Location</Text>
+        <TextInput
+          style={styles.beautifiedInput}
+          placeholder="Current Location"
+          value={start}
+          onChangeText={setStart}
+          placeholderTextColor="#888"
+          returnKeyType="next"
+        />
+      </View>
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.beautifiedInput}
+          placeholder="Enter destination..."
+          value={end}
+          onChangeText={setEnd}
+          placeholderTextColor="#888"
+          returnKeyType="go"
+          onSubmitEditing={calculateRoute}
+        />
+      </View>
+      
+      <View style={styles.modeButtonRow}>
+        <TouchableOpacity style={[styles.modeButton, styles.modeButtonActive]} onPress={() => calculateRoute()}>
+          <Icon name="directions-car" size={24} color="#fff" />
+          <Text style={styles.modeButtonTextActive}>Drive</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-walk" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Walk</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-transit" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Transit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-bike" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Bike</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.timeButtonRow}>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("morning")}
+        >
+          <Text style={styles.buttonText}>Morning</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("afternoon")}
+        >
+          <Text style={styles.buttonText}>Afternoon</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("evening")}
+        >
+          <Text style={styles.buttonText}>Evening</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity 
+        style={styles.navigateButton} 
+        onPress={navigateToTimeLocations}
+      >
+        <Icon name="map" size={24} color="#fff" style={styles.buttonIcon} />
+        <Text style={styles.buttonText}>RouteWise</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+)} */}
+
+
+// RouteWise Overlay
+{showRouteInput && !travelTimesByMode && !hideInputs && (
+  <View style={styles.routeWiseOverlay}>
+    <TouchableOpacity
+      style={styles.cancelIcon}
+      onPress={() => setShowRouteInput(false)}
+    >
+      <Icon name="cancel" size={30} color="#0000FF" />
+    </TouchableOpacity>
+    <View style={styles.inputContainer}>
+      <View style={styles.inputWrapper}>
+        <Text style={styles.inputLabel}>Current Location</Text>
+        <View style={styles.locationInputContainer}>
+          <TextInput
+            style={styles.beautifiedInput}
+            placeholder="Current Location"
+            value={start}
+            onChangeText={setStart}
+            placeholderTextColor="#888"
+            returnKeyType="next"
+          />
+          <TouchableOpacity 
+            style={styles.myLocationButton} 
+            onPress={useCurrentLocation}
+          >
+            <Icon name="my-location" size={20} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.beautifiedInput}
+          placeholder="Enter destination..."
+          value={end}
+          onChangeText={setEnd}
+          placeholderTextColor="#888"
+          returnKeyType="go"
+          onSubmitEditing={calculateRoute}
+        />
+      </View>
+      
+      <View style={styles.modeButtonRow}>
+        <TouchableOpacity style={[styles.modeButton, styles.modeButtonActive]} onPress={() => calculateRoute()}>
+          <Icon name="directions-car" size={24} color="#fff" />
+          <Text style={styles.modeButtonTextActive}>Drive</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-walk" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Walk</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-transit" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Transit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+          <Icon name="directions-bike" size={24} color="#666" />
+          <Text style={styles.modeButtonText}>Bike</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.timeButtonRow}>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("morning")}
+        >
+          <Icon name="wb-sunny" size={24} color="#007AFF" />
+          <Text style={styles.timeButtonText}>Morning</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("afternoon")}
+        >
+          <Icon name="brightness-high" size={24} color="#007AFF" />
+          <Text style={styles.timeButtonText}>Afternoon</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.timeButton} 
+          onPress={() => showTimeBasedLocations("evening")}
+        >
+          <Icon name="nights-stay" size={24} color="#007AFF" />
+          <Text style={styles.timeButtonText}>Evening</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity 
+        style={styles.navigateButton} 
+        onPress={navigateToTimeLocations}
+      >
+        <Icon name="route" size={20} color="#007AFF" style={styles.routeIcon} />
+        <Text style={styles.navigateButtonText}>RouteWise</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+)}
 
       <View style={styles.bottomContainer}>
         {travelTimesByMode && (
@@ -718,7 +1042,7 @@ const HomeScreen = () => {
         />
       </View>
 
-      <View style={styles.floatingButtons}>
+      {/* <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
           <Text style={styles.buttonText}>Weather</Text>
         </TouchableOpacity>
@@ -726,6 +1050,22 @@ const HomeScreen = () => {
           <Text style={styles.buttonText}>Traffic</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
+          <Text style={styles.buttonText}>Crash</Text>
+        </TouchableOpacity>
+      </View> */}
+
+      // Floating Buttons Container
+      <View style={styles.floatingButtons}>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
+          <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Weather</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+          <Icon name="traffic" size={24} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Traffic</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
+          <Icon name="warning" size={24} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Crash</Text>
         </TouchableOpacity>
       </View>
@@ -751,7 +1091,7 @@ const HomeScreen = () => {
         </View>
       )}
 
-      {showAssistantOverlay && (
+      {/* {showAssistantOverlay && (
         <View style={styles.overlay}>
           <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.overlayContent}>
             <Text style={styles.overlayTitle}>Driver Verification</Text>
@@ -791,8 +1131,71 @@ const HomeScreen = () => {
             </View>
           </LinearGradient>
         </View>
-      )}
+      )} */}
+// Assistant Overlay (functionality remains identical)
+{showAssistantOverlay && (
+  <View style={styles.overlay}>
+    <View style={styles.overlayContent}>
+      <View style={styles.header}>
+        <Icon name="verified-user" size={28} color="#007AFF" />
+        <Text style={styles.overlayTitle}>Driver Verification</Text>
+      </View>
 
+      <Text style={styles.overlayText}>
+        Generate a verification code to assign a shuttle
+      </Text>
+
+      <View style={styles.statusContainer}>
+        <View style={styles.syncContainer}>
+          <Text style={styles.syncLabel}>Sync:</Text>
+          <View style={styles.syncStatusContainer}>
+            <View style={[styles.syncIndicator, syncStatus === "Synced" ? styles.synced : styles.notSynced]} />
+            <Text style={styles.syncStatusText}>{syncStatus}</Text>
+          </View>
+        </View>
+
+        {generatedCode && (
+          <View style={styles.codeContainer}>
+            <View style={styles.codeBadge}>
+              <Text style={styles.codeLabel}>Verification Code</Text>
+              <Text style={styles.codeValue}>{generatedCode}</Text>
+            </View>
+            {shuttleRegNumber && (
+              <View style={styles.codeBadge}>
+                <Text style={styles.codeLabel}>Shuttle Number</Text>
+                <Text style={styles.codeValue}>{shuttleRegNumber}</Text>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.generateButton, isGenerating && styles.disabledButton]}
+          onPress={generateCode}
+          disabled={isGenerating}
+        >
+          {isGenerating ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Icon name="vpn-key" size={20} color="#fff" style={styles.buttonIcon} />
+              <Text style={styles.generateButtonText}>Generate Code</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => setShowAssistantOverlay(false)}
+        >
+          <Text style={styles.closeButtonText}>Close</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)}
       {showSearchOverlay && (
         <View style={styles.searchOverlay}>
           <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.searchOverlayContent}>
@@ -816,3 +1219,8 @@ const HomeScreen = () => {
 };
 
 export default HomeScreen;
+
+
+
+
+
