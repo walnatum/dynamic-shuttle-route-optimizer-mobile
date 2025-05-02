@@ -602,100 +602,6 @@ const HomeScreen = () => {
           <Text style={styles.assistantButtonText}>Assistant</Text>
         </TouchableOpacity>
       </View>
-      {/* <TouchableOpacity
-        style={styles.assistantButton}
-        onPress={() => setShowAssistantOverlay(true)}
-      >
-        <Text style={styles.buttonText}>Assistant</Text>
-      </TouchableOpacity>
-
-      {!showRouteInput && !travelTimesByMode && (
-        <TouchableOpacity style={styles.routeWiseButton} onPress={() => setShowRouteInput(true)}>
-          <Text style={styles.buttonText}>RouteWise</Text>
-        </TouchableOpacity>
-      )} */}
-
-      {/* {showRouteInput && !travelTimesByMode && !hideInputs && (
-        <View style={styles.routeWiseOverlay}>
-          <TouchableOpacity
-            style={styles.cancelIcon}
-            onPress={() => setShowRouteInput(false)}
-          >
-            <Icon name="cancel" size={30} color="#FF2D55" />
-          </TouchableOpacity>
-          <View style={styles.inputContainer}>
-            <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.inputWrapper}>
-              <TextInput
-                style={styles.beautifiedInput}
-                placeholder="Starting Point"
-                value={start}
-                onChangeText={setStart}
-                placeholderTextColor="#ffffff"
-                returnKeyType="next"
-              />
-            </LinearGradient>
-            <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.inputWrapper}>
-              <TextInput
-                style={styles.beautifiedInput}
-                placeholder="Destination"
-                value={end}
-                onChangeText={setEnd}
-                placeholderTextColor="#ffffff"
-                returnKeyType="go"
-                onSubmitEditing={calculateRoute}
-              />
-            </LinearGradient>
-            
-            <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={styles.functionButton}
-                onPress={calculateRoute}
-              >
-                <Text style={styles.buttonText}>Get Directions</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.functionButton}
-                onPress={useCurrentLocation}
-              >
-                <Text style={styles.buttonText}>My Location</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.functionButton}
-                onPress={resetMap}
-              >
-                <Text style={styles.buttonText}>Reset</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.timeButtonRow}>
-              <TouchableOpacity 
-                style={styles.timeButton} 
-                onPress={() => showTimeBasedLocations("morning")}
-              >
-                <Text style={styles.buttonText}>Morning</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.timeButton} 
-                onPress={() => showTimeBasedLocations("afternoon")}
-              >
-                <Text style={styles.buttonText}>Afternoon</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.timeButton} 
-                onPress={() => showTimeBasedLocations("evening")}
-              >
-                <Text style={styles.buttonText}>Evening</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity 
-              style={styles.navigateButton} 
-              onPress={navigateToTimeLocations}
-            >
-              <Text style={styles.buttonText}>Navigate Time Locations</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )} */}
 
 // RouteWise Overlay
 {showRouteInput && !travelTimesByMode && !hideInputs && (
@@ -834,18 +740,6 @@ const HomeScreen = () => {
           goToTraffic={goToTraffic}
         />
       </View>
-
-      {/* <View style={styles.floatingButtons}>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
-          <Text style={styles.buttonText}>Weather</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
-          <Text style={styles.buttonText}>Traffic</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
-          <Text style={styles.buttonText}>Crash</Text>
-        </TouchableOpacity>
-      </View> */}
 
       // Floating Buttons Container
       <View style={styles.floatingButtons}>
