@@ -71,6 +71,7 @@ const HomeScreen = () => {
   const [driverCode, setDriverCode] = useState<string>("");
   const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isLoadingPickupPoints, setIsLoadingPickupPoints] = useState<boolean>(false);
 
   const openPhotoOverlay = () => {
     setShowPhotoOverlay(true);
@@ -81,30 +82,6 @@ const HomeScreen = () => {
     longitude: 32.5825,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
-  };
-
-  const timeBasedLocations = {
-    morning: [
-      { name: "City Square", latitude: 0.3163, longitude: 32.5820, description: "Central hub of Kampala with shops and offices." },
-      { name: "Makerere University", latitude: 0.3349, longitude: 32.5678, description: "Premier educational institution in Uganda." },
-      { name: "Nakivubo Market", latitude: 0.3114, longitude: 32.5761, description: "Busy market known for fresh produce." },
-      { name: "Kampala Road", latitude: 0.3176, longitude: 32.5866, description: "Main commercial street with banks." },
-      { name: "Owino Market", latitude: 0.3098, longitude: 32.5738, description: "Popular spot for second-hand goods." },
-    ],
-    afternoon: [
-      { name: "Lugogo Mall", latitude: 0.3262, longitude: 32.6058, description: "Shopping mall with various stores." },
-      { name: "Kololo Airstrip", latitude: 0.3278, longitude: 32.5978, description: "Open area often used for events." },
-      { name: "Garden City", latitude: 0.3168, longitude: 32.5912, description: "Modern mall with a cinema." },
-      { name: "Bugolobi Market", latitude: 0.3068, longitude: 32.6208, description: "Local market with fresh foods." },
-      { name: "Muyenga Hill", latitude: 0.2936, longitude: 32.6113, description: "Residential area with scenic views." },
-    ],
-    evening: [
-      { name: "Acacia Mall", latitude: 0.3375, longitude: 32.5869, description: "Upscale mall with dining options." },
-      { name: "Kabalagala", latitude: 0.2978, longitude: 32.5998, description: "Vibrant nightlife and eateries." },
-      { name: "Speke Resort", latitude: 0.2276, longitude: 32.6198, description: "Luxury resort by Lake Victoria." },
-      { name: "Victoria Mall", latitude: 0.2845, longitude: 32.6065, description: "Shopping center in Entebbe." },
-      { name: "Kasubi Tombs", latitude: 0.3298, longitude: 32.5534, description: "Historical site of Buganda kings." },
-    ],
   };
 
   // Load driver_code from AsyncStorage on mount
@@ -147,7 +124,7 @@ const HomeScreen = () => {
       return;
     }
 
-    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+    const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
     const modes = ["driving", "walking", "bicycling", "transit"];
     let timesByMode = {};
     let points = [];
@@ -283,7 +260,7 @@ const HomeScreen = () => {
         });
   
         fetch(
-          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg`
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg"}`
         )
           .then((response) => response.json())
           .then((data) => {
@@ -336,13 +313,52 @@ const HomeScreen = () => {
     mapRef.current?.animateToRegion(defaultLocation);
   };
 
-  const showTimeBasedLocations = (time: "morning" | "afternoon" | "evening") => {
+  const showTimeBasedLocations = async (time: "morning" | "afternoon" | "evening") => {
     setSelectedTime(time);
-    const locations = timeBasedLocations[time];
-    setTimeMarkers(locations);
-    mapRef.current?.fitToCoordinates(locations, {
-      edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-    });
+    setIsLoadingPickupPoints(true);
+
+    if (!driverCode) {
+      Alert.alert("Error", "Driver code not found. Please log in again.");
+      navigation.navigate("LogScreen");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${Config.API_BASE_URL}/api/driver/pickup-points/`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          driver_code: driverCode,
+          time_of_day: time,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        const locations = data.pickup_points;
+        if (locations.length === 0) {
+          Alert.alert("Info", `No pickup points found for ${time}.`);
+          setTimeMarkers([]);
+          return;
+        }
+
+        setTimeMarkers(locations);
+        mapRef.current?.fitToCoordinates(locations, {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        });
+      } else {
+        throw new Error(data.error || "Failed to fetch pickup points");
+      }
+    } catch (error) {
+      console.error("Error fetching pickup points:", error);
+      Alert.alert("Error", "Failed to load pickup points. Please check your internet connection.");
+      setTimeMarkers([]);
+    } finally {
+      setIsLoadingPickupPoints(false);
+    }
   };
 
   const navigateToTimeLocations = async () => {
@@ -351,15 +367,15 @@ const HomeScreen = () => {
       return;
     }
 
-    const locations = timeBasedLocations[selectedTime];
+    const locations = timeMarkers;
     if (locations.length < 2) {
-      Alert.alert("Error", "Not enough locations to create a route.");
+      Alert.alert("Error", "Not enough pickup points to create a route.");
       return;
     }
 
     setShowRouteInput(false);
 
-    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+    const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
     let allTravelTimes: string[] = [];
 
     for (let i = 0; i < locations.length - 1; i++) {
@@ -421,7 +437,7 @@ const HomeScreen = () => {
       return;
     }
 
-    const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+    const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
     const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${apiKey}&region=ug`;
 
     try {
@@ -497,6 +513,7 @@ const HomeScreen = () => {
       setIsGenerating(false);
     }
   };
+
   const panResponder = React.useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -557,6 +574,13 @@ const HomeScreen = () => {
         )}
       </MapView>
 
+      {isLoadingPickupPoints && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading pickup points...</Text>
+        </View>
+      )}
+
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -571,9 +595,7 @@ const HomeScreen = () => {
           style={styles.searchImageContainer} 
           onPress={searchPlaces}
         >
-          {/* <Icon name="search" size={30} color="#666" /> */}
           <Icon name="search" size={30} color="#0000FF" />
-
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.photoIconContainer}
@@ -582,7 +604,7 @@ const HomeScreen = () => {
           <Icon name="person" size={30} color="#0000FF" />
         </TouchableOpacity>
       </View>
-      // Container for both buttons to align them side by side
+
       <View style={styles.buttonContainer}>
         {!showRouteInput && !travelTimesByMode && (
           <TouchableOpacity 
@@ -603,100 +625,99 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-// RouteWise Overlay
-{showRouteInput && !travelTimesByMode && !hideInputs && (
-  <View style={styles.routeWiseOverlay}>
-    <TouchableOpacity
-      style={styles.cancelIcon}
-      onPress={() => setShowRouteInput(false)}
-    >
-      <Icon name="cancel" size={30} color="#0000FF" />
-    </TouchableOpacity>
-    <View style={styles.inputContainer}>
-      <View style={styles.inputWrapper}>
-        <Text style={styles.inputLabel}>Current Location</Text>
-        <View style={styles.locationInputContainer}>
-          <TextInput
-            style={styles.beautifiedInput}
-            placeholder="Current Location"
-            value={start}
-            onChangeText={setStart}
-            placeholderTextColor="#888"
-            returnKeyType="next"
-          />
-          <TouchableOpacity 
-            style={styles.myLocationButton} 
-            onPress={useCurrentLocation}
+      {showRouteInput && !travelTimesByMode && !hideInputs && (
+        <View style={styles.routeWiseOverlay}>
+          <TouchableOpacity
+            style={styles.cancelIcon}
+            onPress={() => setShowRouteInput(false)}
           >
-            <Icon name="my-location" size={20} color="#007AFF" />
+            <Icon name="cancel" size={30} color="#0000FF" />
           </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Current Location</Text>
+              <View style={styles.locationInputContainer}>
+                <TextInput
+                  style={styles.beautifiedInput}
+                  placeholder="Current Location"
+                  value={start}
+                  onChangeText={setStart}
+                  placeholderTextColor="#888"
+                  returnKeyType="next"
+                />
+                <TouchableOpacity 
+                  style={styles.myLocationButton} 
+                  onPress={useCurrentLocation}
+                >
+                  <Icon name="my-location" size={20} color="#007AFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.beautifiedInput}
+                placeholder="Enter destination..."
+                value={end}
+                onChangeText={setEnd}
+                placeholderTextColor="#888"
+                returnKeyType="go"
+                onSubmitEditing={calculateRoute}
+              />
+            </View>
+            
+            <View style={styles.modeButtonRow}>
+              <TouchableOpacity style={[styles.modeButton, styles.modeButtonActive]} onPress={() => calculateRoute()}>
+                <Icon name="directions-car" size={24} color="#fff" />
+                <Text style={styles.modeButtonTextActive}>Drive</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+                <Icon name="directions-walk" size={24} color="#666" />
+                <Text style={styles.modeButtonText}>Walk</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+                <Icon name="directions-transit" size={24} color="#666" />
+                <Text style={styles.modeButtonText}>Transit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
+                <Icon name="directions-bike" size={24} color="#666" />
+                <Text style={styles.modeButtonText}>Bike</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.timeButtonRow}>
+              <TouchableOpacity 
+                style={[styles.timeButton, selectedTime === "morning" && styles.timeButtonActive]} 
+                onPress={() => showTimeBasedLocations("morning")}
+              >
+                <Icon name="wb-sunny" size={24} color={selectedTime === "morning" ? "#fff" : "#007AFF"} />
+                <Text style={[styles.timeButtonText, selectedTime === "morning" && styles.timeButtonTextActive]}>Morning</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.timeButton, selectedTime === "afternoon" && styles.timeButtonActive]} 
+                onPress={() => showTimeBasedLocations("afternoon")}
+              >
+                <Icon name="brightness-high" size={24} color={selectedTime === "afternoon" ? "#fff" : "#007AFF"} />
+                <Text style={[styles.timeButtonText, selectedTime === "afternoon" && styles.timeButtonTextActive]}>Afternoon</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.timeButton, selectedTime === "evening" && styles.timeButtonActive]} 
+                onPress={() => showTimeBasedLocations("evening")}
+              >
+                <Icon name="nights-stay" size={24} color={selectedTime === "evening" ? "#fff" : "#007AFF"} />
+                <Text style={[styles.timeButtonText, selectedTime === "evening" && styles.timeButtonTextActive]}>Evening</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.navigateButton} 
+              onPress={navigateToTimeLocations}
+            >
+              <Icon name="route" size={20} color="#007AFF" style={styles.routeIcon} />
+              <Text style={styles.navigateButtonText}>RouteWise</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      <View style={styles.inputWrapper}>
-        <TextInput
-          style={styles.beautifiedInput}
-          placeholder="Enter destination..."
-          value={end}
-          onChangeText={setEnd}
-          placeholderTextColor="#888"
-          returnKeyType="go"
-          onSubmitEditing={calculateRoute}
-        />
-      </View>
-      
-      <View style={styles.modeButtonRow}>
-        <TouchableOpacity style={[styles.modeButton, styles.modeButtonActive]} onPress={() => calculateRoute()}>
-          <Icon name="directions-car" size={24} color="#fff" />
-          <Text style={styles.modeButtonTextActive}>Drive</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
-          <Icon name="directions-walk" size={24} color="#666" />
-          <Text style={styles.modeButtonText}>Walk</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
-          <Icon name="directions-transit" size={24} color="#666" />
-          <Text style={styles.modeButtonText}>Transit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.modeButton} onPress={() => calculateRoute()}>
-          <Icon name="directions-bike" size={24} color="#666" />
-          <Text style={styles.modeButtonText}>Bike</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.timeButtonRow}>
-        <TouchableOpacity 
-          style={styles.timeButton} 
-          onPress={() => showTimeBasedLocations("morning")}
-        >
-          <Icon name="wb-sunny" size={24} color="#007AFF" />
-          <Text style={styles.timeButtonText}>Morning</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.timeButton} 
-          onPress={() => showTimeBasedLocations("afternoon")}
-        >
-          <Icon name="brightness-high" size={24} color="#007AFF" />
-          <Text style={styles.timeButtonText}>Afternoon</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.timeButton} 
-          onPress={() => showTimeBasedLocations("evening")}
-        >
-          <Icon name="nights-stay" size={24} color="#007AFF" />
-          <Text style={styles.timeButtonText}>Evening</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.navigateButton} 
-        onPress={navigateToTimeLocations}
-      >
-        <Icon name="route" size={20} color="#007AFF" style={styles.routeIcon} />
-        <Text style={styles.navigateButtonText}>RouteWise</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-)}
+      )}
 
       <View style={styles.bottomContainer}>
         {travelTimesByMode && (
@@ -741,7 +762,6 @@ const HomeScreen = () => {
         />
       </View>
 
-      // Floating Buttons Container
       <View style={styles.floatingButtons}>
         <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
           <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
@@ -778,37 +798,59 @@ const HomeScreen = () => {
         </View>
       )}
 
-      {/* {showAssistantOverlay && (
+      {showAssistantOverlay && (
         <View style={styles.overlay}>
-          <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.overlayContent}>
-            <Text style={styles.overlayTitle}>Driver Verification</Text>
-            <Text style={styles.overlayText}>
-              Generate a verification code to assign a shuttle.
-            </Text>
-            <View style={styles.syncContainer}>
-              <Text style={styles.syncLabel}>Sync:</Text>
-              <Text style={[styles.syncStatus, syncStatus === "Synced" && { color: "#00ff00" }]}>
-                {syncStatus}
-              </Text>
+          <View style={styles.overlayContent}>
+            <View style={styles.header}>
+              <Icon name="verified-user" size={28} color="#007AFF" />
+              <Text style={styles.overlayTitle}>Driver Verification</Text>
             </View>
-            {generatedCode && (
-              <View style={styles.codeContainer}>
-                <Text style={styles.generatedCodeText}>Code: {generatedCode}</Text>
-                {shuttleRegNumber && (
-                  <Text style={styles.generatedCodeText}>Shuttle: {shuttleRegNumber}</Text>
-                )}
+
+            <Text style={styles.overlayText}>
+              Verify your driver status to proceed.
+            </Text>
+
+            <View style={styles.statusContainer}>
+              <View style={styles.syncContainer}>
+                <Text style={styles.syncLabel}>Sync:</Text>
+                <View style={styles.syncStatusContainer}>
+                  <View style={[styles.syncIndicator, syncStatus === "Synced" ? styles.synced : styles.notSynced]} />
+                  <Text style={styles.syncStatusText}>{syncStatus}</Text>
+                </View>
               </View>
-            )}
+
+              {generatedCode && (
+                <View style={styles.codeContainer}>
+                  <View style={styles.codeBadge}>
+                    <Text style={styles.codeLabel}>Verification Code</Text>
+                    <Text style={styles.codeValue}>{generatedCode}</Text>
+                  </View>
+                  {shuttleRegNumber && (
+                    <View style={styles.codeBadge}>
+                      <Text style={styles.codeLabel}>Shuttle Number</Text>
+                      <Text style={styles.codeValue}>{shuttleRegNumber}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.generateButton, isGenerating && styles.disabledButton]}
                 onPress={generateCode}
                 disabled={isGenerating}
               >
-                <Text style={styles.generateButtonText}>
-                  {isGenerating ? "Generating..." : "Generate Verification Code"}
-                </Text>
+                {isGenerating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Icon name="vpn-key" size={20} color="#fff" style={styles.buttonIcon} />
+                    <Text style={styles.generateButtonText}>Generate Code</Text>
+                  </>
+                )}
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowAssistantOverlay(false)}
@@ -816,73 +858,10 @@ const HomeScreen = () => {
                 <Text style={styles.closeButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
-          </LinearGradient>
-        </View>
-      )} */}
-// Assistant Overlay (functionality remains identical)
-{showAssistantOverlay && (
-  <View style={styles.overlay}>
-    <View style={styles.overlayContent}>
-      <View style={styles.header}>
-        <Icon name="verified-user" size={28} color="#007AFF" />
-        <Text style={styles.overlayTitle}>Driver Verification</Text>
-      </View>
-
-      <Text style={styles.overlayText}>
-        Generate a verification code to assign a shuttle
-      </Text>
-
-      <View style={styles.statusContainer}>
-        <View style={styles.syncContainer}>
-          <Text style={styles.syncLabel}>Sync:</Text>
-          <View style={styles.syncStatusContainer}>
-            <View style={[styles.syncIndicator, syncStatus === "Synced" ? styles.synced : styles.notSynced]} />
-            <Text style={styles.syncStatusText}>{syncStatus}</Text>
           </View>
         </View>
+      )}
 
-        {generatedCode && (
-          <View style={styles.codeContainer}>
-            <View style={styles.codeBadge}>
-              <Text style={styles.codeLabel}>Verification Code</Text>
-              <Text style={styles.codeValue}>{generatedCode}</Text>
-            </View>
-            {shuttleRegNumber && (
-              <View style={styles.codeBadge}>
-                <Text style={styles.codeLabel}>Shuttle Number</Text>
-                <Text style={styles.codeValue}>{shuttleRegNumber}</Text>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.generateButton, isGenerating && styles.disabledButton]}
-          onPress={generateCode}
-          disabled={isGenerating}
-        >
-          {isGenerating ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Icon name="vpn-key" size={20} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.generateButtonText}>Generate Code</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => setShowAssistantOverlay(false)}
-        >
-          <Text style={styles.closeButtonText}>Close</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-)}
       {showSearchOverlay && (
         <View style={styles.searchOverlay}>
           <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.searchOverlayContent}>
@@ -906,8 +885,3 @@ const HomeScreen = () => {
 };
 
 export default HomeScreen;
-
-
-
-
-
