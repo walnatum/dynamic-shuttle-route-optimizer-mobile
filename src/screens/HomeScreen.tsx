@@ -624,6 +624,7 @@ const HomeScreen = () => {
           <Text style={styles.assistantButtonText}>Assistant</Text>
         </TouchableOpacity>
       </View>
+z
 
       {showRouteInput && !travelTimesByMode && !hideInputs && (
         <View style={styles.routeWiseOverlay}>
