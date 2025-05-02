@@ -230,10 +230,6 @@ const LogScreen = () => {
           <TouchableOpacity style={[styles.roleButton, styles.adminButton]} onPress={goToAdmin}>
             <Text style={styles.roleButtonText}>As Admin</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.roleButton, styles.adminButton]} onPress={goToRoute}>
-            <Text style={styles.roleButtonText}>As Route</Text>
-          </TouchableOpacity>
         </View>
 
         <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
