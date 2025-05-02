@@ -526,17 +526,7 @@ const ParentScreen = () => {
         />
       </View>
 
-      <View style={styles.floatingButtons}>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
-          <Text style={styles.buttonText}>Weather</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
-          <Text style={styles.buttonText}>Traffic</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton}>
-          <Text style={styles.buttonText}>Crash</Text>
-        </TouchableOpacity>
-      </View>
+
 
       <TouchableOpacity
         style={[

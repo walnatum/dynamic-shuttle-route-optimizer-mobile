@@ -1,153 +1,247 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
-import styles from "./styles/TrafficscreenStyles"; // Adjust the path if you placed the file in a different 
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import styles from "./styles/TrafficscreenStyles";
 
+const TrafficScreen = ({ navigation }) => {
+    const initialRegion = {
+        latitude: 0.3476,
+        longitude: 32.5825,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+    };
 
-const TrafficScreen = () => {
-  // Initial region set to Kampala, Uganda
-  const initialRegion = {
-    latitude: 0.3476,         // Kampala's latitude
-    longitude: 32.5825,       // Kampala's longitude
-    latitudeDelta: 0.0922,    // Approx zoom level 13
-    longitudeDelta: 0.0421,   // Approx zoom level 13
-  };
+    const [trafficData, setTrafficData] = useState([]);
+    const [region, setRegion] = useState(initialRegion);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [marker, setMarker] = useState(null);
+    const [currentLocation, setCurrentLocation] = useState('Kampala');
+    const [showOverlay, setShowOverlay] = useState(true);
+    const mapRef = useRef(null);
+    const apiKey = 'AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg';
 
-  const [trafficData, setTrafficData] = useState([]); // Store traffic data
-  const [showTrafficData, setShowTrafficData] = useState(false); // Toggle visibility
-  const [region, setRegion] = useState(initialRegion); // Track current map region
-  const mapRef = useRef(null); // Reference to MapView
-  const apiKey = 'AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg'; // Replace with your API key
+    const goToHome = () => navigation.navigate("HomeScreen");
+    const goToWeather = () => navigation.navigate("WeatherScreen");
+    const goToTraffic = () => navigation.navigate("TrafficScreen");
+    const goToCrash = () => navigation.navigate("CrashScreen");
 
-  // Function to fetch traffic data based on current map center
-  const fetchTrafficData = async (centerLat, centerLng) => {
-    // Define dynamic start and end points around the center (e.g., ±0.01 degrees ~ 1 km)
-    const startLat = centerLat - 0.01;
-    const startLng = centerLng - 0.01;
-    const endLat = centerLat + 0.01;
-    const endLng = centerLng + 0.01;
+    const fetchNearbyRoadsTraffic = async (centerLat, centerLng) => {
+        const directionsPromises = [
+            fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${centerLat + 0.01},${centerLng}&destination=${centerLat - 0.01},${centerLng}&key=${apiKey}&mode=driving&departure_time=now&traffic_model=best_guess`),
+            fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${centerLat},${centerLng + 0.01}&destination=${centerLat},${centerLng - 0.01}&key=${apiKey}&mode=driving&departure_time=now&traffic_model=best_guess`),
+            fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${centerLat + 0.01},${centerLng + 0.01}&destination=${centerLat - 0.01},${centerLng - 0.01}&key=${apiKey}&mode=driving&departure_time=now&traffic_model=best_guess`),
+            fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${centerLat + 0.01},${centerLng - 0.01}&destination=${centerLat - 0.01},${centerLng + 0.01}&key=${apiKey}&mode=driving&departure_time=now&traffic_model=best_guess`)
+        ];
 
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLat},${startLng}&destination=${endLat},${endLng}&key=${apiKey}&mode=driving&departure_time=now&traffic_model=best_guess`;
+        try {
+            const responses = await Promise.all(directionsPromises);
+            const data = await Promise.all(responses.map(res => res.json()));
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
+            const roadsMap = new Map();
 
-      if (data.status === 'OK') {
-        const legs = data.routes[0].legs[0];
-        const steps = legs.steps;
+            data.forEach(routeData => {
+                if (routeData.status === 'OK' && routeData.routes[0]) {
+                    const steps = routeData.routes[0].legs[0].steps;
 
-        // Extract traffic info from each step
-        const extractedTraffic = steps.map((step, index) => {
-          const distance = step.distance.value; // in meters
-          const duration = step.duration.value; // in seconds
-          const durationInTraffic = step.duration_in_traffic?.value || duration; // in seconds
-          const speed = distance / durationInTraffic; // meters per second
-          const roadName = step.html_instructions.replace(/<[^>]*>/g, ""); // Strip HTML tags
+                    steps.forEach(step => {
+                        const cleanInstruction = step.html_instructions.replace(/<[^>]*>/g, '');
+                        const roadMatch = cleanInstruction.match(/(?:on|onto|to|via)\s(.+)/i);
+                        const roadName = roadMatch ? roadMatch[1].split('(')[0].trim() : cleanInstruction.trim();
 
-          // Define traffic condition based on speed
-          let trafficCondition;
-          if (speed < 5) {
-            trafficCondition = 'Congested'; // < 18 km/h
-          } else if (speed >= 5 && speed <= 10) {
-            trafficCondition = 'Medium'; // 18-36 km/h
-          } else {
-            trafficCondition = 'Free'; // > 36 km/h
-          }
+                        if (roadName) {
+                            const distance = step.distance.value;
+                            const duration = step.duration.value;
+                            const durationInTraffic = step.duration_in_traffic?.value || duration;
+                            const speed = distance / durationInTraffic;
+                            const speedKmh = (speed * 3.6).toFixed(2);
 
-          return {
-            road: roadName,
-            trafficCondition,
-            speedKmh: (speed * 3.6).toFixed(2), // Convert to km/h for reference
-          };
-        });
+                            let trafficCondition = 'Free';
+                            if (speed < 5) trafficCondition = 'Congested';
+                            else if (speed < 10) trafficCondition = 'Medium';
 
-        setTrafficData(extractedTraffic);
-        console.log('Real-time Traffic Data:', extractedTraffic);
-      } else {
-        Alert.alert('Error', `Failed to fetch traffic data: ${data.status}`);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch traffic data. Check your connection or API key.');
-      console.error(error);
-    }
-  };
+                            if (!roadsMap.has(roadName)) {
+                                roadsMap.set(roadName, {
+                                    road: roadName,
+                                    trafficCondition,
+                                    speedKmh,
+                                    coordinates: step.polyline?.points || ''
+                                });
+                            }
+                        }
+                    });
+                }
+            });
 
-  // Fetch traffic data initially and on region change
-  useEffect(() => {
-    fetchTrafficData(initialRegion.latitude, initialRegion.longitude); // Initial fetch
-    const interval = setInterval(() => {
-      fetchTrafficData(region.latitude, region.longitude); // Refresh every 5 minutes based on current center
-    }, 5 * 60 * 1000);
+            const nearbyRoads = Array.from(roadsMap.values());
+            setTrafficData(nearbyRoads);
+            setShowOverlay(true); // Ensure overlay is shown
+        } catch (error) {
+            Alert.alert('Error', 'Failed to fetch nearby roads traffic data');
+            console.error(error);
+        }
+    };
 
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, [region]); // Re-run when region changes
+    const reverseGeocode = async (lat, lon) => {
+        try {
+            const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${apiKey}`;
+            const geoResponse = await fetch(geoUrl);
+            const geoData = await geoResponse.json();
+            if (geoData.status === 'OK') {
+                const locality = geoData.results[0].address_components.find(
+                    comp => comp.types.includes('locality')
+                );
+                return locality ? locality.long_name : geoData.results[0].formatted_address.split(',')[0];
+            }
+            return null;
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
+    };
 
-  // Update region when user moves the map
-  const onRegionChangeComplete = (newRegion) => {
-    setRegion(newRegion);
-    fetchTrafficData(newRegion.latitude, newRegion.longitude); // Fetch new data immediately
-  };
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) return;
 
-  // Toggle traffic data visibility
-  const toggleTrafficData = () => {
-    setShowTrafficData(!showTrafficData);
-  };
+        const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+            searchQuery + ', Uganda'
+        )}&key=${apiKey}`;
+        try {
+            const geoResponse = await fetch(geoUrl);
+            const geoData = await geoResponse.json();
 
-  // Close the overlay
-  const closeTrafficData = () => {
-    setShowTrafficData(false);
-  };
+            if (geoData.status === 'OK') {
+                const { lat, lng } = geoData.results[0].geometry.location;
+                const newRegion = {
+                    latitude: lat,
+                    longitude: lng,
+                    latitudeDelta: 0.0922,
+                    longitudeDelta: 0.0421,
+                };
 
-  return (
-    <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={initialRegion}
-        showsTraffic={true}
-        onRegionChangeComplete={onRegionChangeComplete} // Detect map movement
-      />
+                setRegion(newRegion);
+                setMarker({ latitude: lat, longitude: lng });
+                mapRef.current.animateToRegion(newRegion, 1000);
 
-      {/* Button to show traffic data */}
-      <TouchableOpacity style={styles.showDataButton} onPress={toggleTrafficData}>
-        <Text style={styles.buttonText}>
-          {showTrafficData ? 'Hide Traffic Data' : 'Show Traffic Data'}
-        </Text>
-      </TouchableOpacity>
+                const locationName = await reverseGeocode(lat, lng);
+                if (locationName) setCurrentLocation(locationName);
 
-      {/* Display traffic data when toggled */}
-      {showTrafficData && trafficData.length > 0 && (
-        <View style={styles.trafficInfo}>
-          <Text style={styles.trafficTitle}>Real-Time Traffic Data:</Text>
-          {trafficData.map((data, index) => (
-            <Text key={index} style={styles.trafficText}>
-              {data.road} - {data.trafficCondition}
-            </Text>
-          ))}
-          {/* Cancel button */}
-          <TouchableOpacity style={styles.cancelButton} onPress={closeTrafficData}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+                await fetchNearbyRoadsTraffic(lat, lng);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    useEffect(() => {
+        fetchNearbyRoadsTraffic(initialRegion.latitude, initialRegion.longitude);
+        const interval = setInterval(() => {
+            fetchNearbyRoadsTraffic(region.latitude, region.longitude);
+        }, 5 * 60 * 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const onRegionChangeComplete = (newRegion) => {
+        setRegion(newRegion);
+        fetchNearbyRoadsTraffic(newRegion.latitude, newRegion.longitude);
+    };
+
+    const getTrafficIcon = (condition) => {
+        switch (condition) {
+            case 'Congested': return 'traffic-cone';
+            case 'Medium': return 'car-speed-limiter';
+            default: return 'highway';
+        }
+    };
+
+    return (
+        <View style={styles.container}>
+            <MapView
+                ref={mapRef}
+                provider={PROVIDER_GOOGLE}
+                style={styles.map}
+                initialRegion={initialRegion}
+                showsTraffic={true}
+                onRegionChangeComplete={onRegionChangeComplete}
+            >
+                {marker && <Marker coordinate={marker} />}
+            </MapView>
+
+            <View style={styles.searchContainer}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search a place in Uganda (e.g., Jinja)"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onSubmitEditing={handleSearch}
+                />
+                <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+                    <Icon name="magnify" size={24} color="white" />
+                </TouchableOpacity>
+            </View>
+
+            {showOverlay && trafficData.length > 0 && (
+                <View style={styles.trafficOverlay}>
+                    <ScrollView>
+                        <View style={styles.trafficCard}>
+                            <Text style={styles.location}>{currentLocation}</Text>
+                            <Text style={styles.trafficTitle}>Nearby Roads Traffic</Text>
+
+                            <View style={styles.trafficContainer}>
+                                {trafficData.map((data, index) => (
+                                    <View key={index} style={styles.trafficItem}>
+                                        <Icon
+                                            name={getTrafficIcon(data.trafficCondition)}
+                                            size={20}
+                                            color={
+                                                data.trafficCondition === 'Congested' ? '#FF2D55' :
+                                                data.trafficCondition === 'Medium' ? '#FF9500' : '#007AFF'
+                                            }
+                                        />
+                                        <Text style={styles.roadName} numberOfLines={1}>
+                                            {data.road}
+                                        </Text>
+                                        <Text style={[
+                                            styles.trafficCondition,
+                                            data.trafficCondition === 'Congested' && { color: '#FF2D55' },
+                                            data.trafficCondition === 'Medium' && { color: '#FF9500' }
+                                        ]}>
+                                            {data.trafficCondition} ({data.speedKmh} km/h)
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowOverlay(false)}>
+                                <Text style={styles.cancelButtonText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </View>
+            )}
+
+            <View style={styles.floatingButtons}>
+                <TouchableOpacity style={styles.floatingButton} onPress={goToHome}>
+                    <Icon name="home" size={24} color="#007AFF" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>Home</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
+                    <Icon name="cloud" size={24} color="#007AFF" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>Weather</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+                    <Icon name="traffic-light" size={24} color="#007AFF" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>Traffic</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
+                    <Icon name="alert" size={24} color="#007AFF" style={styles.buttonIcon} />
+                    <Text style={styles.buttonText}>Crash</Text>
+                </TouchableOpacity>
+            </View>
         </View>
-      )}
-
-      {/* Display message if no data yet */}
-      {showTrafficData && trafficData.length === 0 && (
-        <View style={styles.trafficInfo}>
-          <Text style={styles.trafficText}>Fetching traffic data...</Text>
-          {/* Cancel button */}
-          <TouchableOpacity style={styles.cancelButton} onPress={closeTrafficData}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
+    );
 };
-
-
 
 export default TrafficScreen;

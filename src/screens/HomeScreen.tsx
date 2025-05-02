@@ -602,6 +602,7 @@ const HomeScreen = () => {
           <Text style={styles.assistantButtonText}>Assistant</Text>
         </TouchableOpacity>
       </View>
+z
 
 // RouteWise Overlay
 {showRouteInput && !travelTimesByMode && !hideInputs && (
