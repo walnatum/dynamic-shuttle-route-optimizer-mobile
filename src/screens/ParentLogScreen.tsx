@@ -3,8 +3,20 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'reac
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import LinearGradient from 'react-native-linear-gradient';
-import { RootStackParamList } from '../../App'; 
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Config from "react-native-config";
+
+export type RootStackParamList = {
+  LogScreen: { tempCode?: string; driverCode?: string } | undefined;
+  HomeScreen: { driverCode: string; role: string } | undefined;
+  AssistantScreen: { tempCode: string; driverCode: string };
+  ParentLogScreen: undefined;
+  AdminLoginScreen: undefined;
+  RouteScreen: undefined;
+  ParentScreen: { parentId: string; role: string };
+  AdminScreen: { schoolId: string; role: string };
+};
 
 type ParentLogScreenNavigationProp = StackNavigationProp<RootStackParamList, 'ParentLogScreen'>;
 
@@ -12,24 +24,62 @@ const ParentLogScreen = () => {
   const navigation = useNavigation<ParentLogScreenNavigationProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
+    AsyncStorage.getItem("user_role").then((role) => {
+      if (role === "parent") {
+        AsyncStorage.getItem("parent_id").then((parentId) => {
+          if (parentId) {
+            navigation.navigate("ParentScreen", { parentId, role: "parent" });
+          }
+        });
+      }
+    });
   }, [navigation]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password.');
       return;
     }
-    console.log('Logging in with:', email, password);
+
+    setIsLoading(true);
     try {
-      navigation.navigate('ParentScreen');
-    } catch (error) {
-      console.error('Navigation error:', error);
-      Alert.alert('Navigation Error', 'Could not navigate to Parent screen');
+      const response = await fetch(`${Config.API_BASE_URL}/api/login/`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      if (data.role !== "parent") {
+        throw new Error("This login is for parents only. Please use the Driver or Admin login.");
+      }
+
+      const { parent_id, role } = data;
+      if (!parent_id) {
+        throw new Error("No parent ID returned from login");
+      }
+
+      await AsyncStorage.setItem("parent_id", parent_id);
+      await AsyncStorage.setItem("user_role", role);
+      navigation.navigate('ParentScreen', { parentId: parent_id, role });
+    } catch (error: any) {
+      console.error("Login error:", error.message);
+      Alert.alert("Error", error.message || "Could not log in");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,26 +113,21 @@ const ParentLogScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#1A2526', '#00A3FF']} // Dark blue gradient from previous code
+      colors={['#1A2526', '#00A3FF']}
       style={styles.container}
     >
       <View style={styles.overlay}>
-        {/* Back Arrow */}
         <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Icon name="arrow-back" size={30} color="#fff" />
         </TouchableOpacity>
 
-
-        {/* Header */}
         <Text style={styles.title}>Parent Login</Text>
         <Text style={styles.subtitle}>Manage Your Child's Journey</Text>
 
-        {/* Icon or Logo (Placeholder) */}
         <View style={styles.iconContainer}>
           <Text style={styles.icon}>👨‍👩‍👧</Text>
         </View>
 
-        {/* Login Fields */}
         <View style={styles.inputContainer}>
           <LinearGradient
             colors={['#ffffff', '#e0e0e0']}
@@ -91,7 +136,7 @@ const ParentLogScreen = () => {
             <View style={styles.inputRow}>
               <TextInput
                 style={styles.input}
-                placeholder="Username"
+                placeholder="Email"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -128,12 +173,14 @@ const ParentLogScreen = () => {
           </LinearGradient>
         </View>
 
-        {/* Login Button */}
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Login</Text>
+        <TouchableOpacity
+          style={[styles.loginButton, isLoading && styles.disabledButton]}
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          <Text style={styles.buttonText}>{isLoading ? "Logging in..." : "Login"}</Text>
         </TouchableOpacity>
 
-        {/* Footer Text */}
         <Text style={styles.footerText}>Navigate Smarter, Travel Better</Text>
       </View>
     </LinearGradient>
@@ -159,21 +206,6 @@ const styles = StyleSheet.create({
     top: 40,
     left: 20,
     zIndex: 1,
-  },
-  topAssistantButton: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    backgroundColor: '#007AFF', // Bright blue
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    zIndex: 20,
-  },
-  assistantButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   title: {
     fontSize: 36,
@@ -238,7 +270,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   loginButton: {
-    backgroundColor: '#0066CC', // Darker blue for login button
+    backgroundColor: '#0066CC',
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
@@ -250,6 +282,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 5,
+  },
+  disabledButton: {
+    backgroundColor: "#999",
   },
   buttonText: {
     color: '#fff',

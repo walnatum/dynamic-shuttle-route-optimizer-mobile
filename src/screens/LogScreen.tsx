@@ -15,19 +15,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Config from "react-native-config";
 
 export type RootStackParamList = {
-  LogScreen: { tempCode: string; driverCode: string } | undefined;
-  HomeScreen: { driverCode: string } | undefined;
+  LogScreen: { tempCode?: string; driverCode?: string } | undefined;
+  HomeScreen: { driverCode: string; role: string } | undefined;
   AssistantScreen: { tempCode: string; driverCode: string };
   ParentLogScreen: undefined;
   AdminLoginScreen: undefined;
   RouteScreen: undefined;
+  ParentScreen: { parentId: string; role: string };
+  AdminScreen: { schoolId: string; role: string };
 };
 
 type LogScreenRouteProp = RouteProp<RootStackParamList, "LogScreen">;
 type LogScreenNavigationProp = StackNavigationProp<RootStackParamList, "LogScreen">;
 
 const LogScreen = () => {
-  const navigation = useNavigation<LogScreenNavigationProp>();	
+  const navigation = useNavigation<LogScreenNavigationProp>();
   const route = useRoute<LogScreenRouteProp>();
   const { tempCode = "", driverCode = "" } = route.params || {};
   const [email, setEmail] = useState("");
@@ -38,10 +40,13 @@ const LogScreen = () => {
     navigation.setOptions({
       headerShown: false,
     });
-    // Check for stored driver_code on mount
-    AsyncStorage.getItem("driver_code").then((storedCode) => {
-      if (storedCode) {
-        navigation.navigate("HomeScreen", { driverCode: storedCode });
+    AsyncStorage.getItem("user_role").then((role) => {
+      if (role === "shuttle_driver") {
+        AsyncStorage.getItem("driver_code").then((storedCode) => {
+          if (storedCode) {
+            navigation.navigate("HomeScreen", { driverCode: storedCode, role: "shuttle_driver" });
+          }
+        });
       }
     });
   }, [navigation]);
@@ -68,14 +73,18 @@ const LogScreen = () => {
         throw new Error(data.error || "Login failed");
       }
 
-      const driverCode = data.driver_code;
-      if (!driverCode) {
+      if (data.role !== "shuttle_driver") {
+        throw new Error("This login is for drivers only. Please use the Parent or Admin login.");
+      }
+
+      const { driver_code, role } = data;
+      if (!driver_code) {
         throw new Error("No driver code returned from login");
       }
 
-      // Store driver_code
-      await AsyncStorage.setItem("driver_code", driverCode);
-      navigation.navigate("HomeScreen", { driverCode });
+      await AsyncStorage.setItem("driver_code", driver_code);
+      await AsyncStorage.setItem("user_role", role);
+      navigation.navigate("HomeScreen", { driverCode: driver_code, role });
     } catch (error: any) {
       console.error("Login error:", error.message);
       Alert.alert("Error", error.message || "Could not log in");
@@ -392,4 +401,5 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
 });
+
 export default LogScreen;

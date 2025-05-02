@@ -55,7 +55,7 @@ const HomeScreen = () => {
   const [showAssistantOverlay, setShowAssistantOverlay] = useState<boolean>(false);
   const [showSearchOverlay, setShowSearchOverlay] = useState<boolean>(false);
   const [generatedCode, setGeneratedCode] = useState<string>("");
-  const [syncStatus, setSyncStatus] = useState<"UnSync" | "In Sync" | "Synced">("UnSync");
+  const [syncStatus, setSyncStatus] = useState<"Not in sync" | "In Sync" | "Synced">("Not in sync");
   const [shuttleRegNumber, setShuttleRegNumber] = useState<string>("");
   const [timeMarkers, setTimeMarkers] = useState<{ name: string; latitude: number; longitude: number; description: string }[]>([]);
   const [selectedTime, setSelectedTime] = useState<"morning" | "afternoon" | "evening" | null>(null);
@@ -507,7 +507,7 @@ const HomeScreen = () => {
       navigation.navigate("LogScreen", { tempCode: data.code, driverCode });
     } catch (error: any) {
       console.error("Error generating code:", error.message);
-      setSyncStatus("UnSync");
+      setSyncStatus("Not in sync");
       Alert.alert("Error", error.message || "Failed to generate code");
     } finally {
       setIsGenerating(false);
