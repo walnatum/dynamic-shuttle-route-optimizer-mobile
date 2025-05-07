@@ -618,7 +618,7 @@ const ParentScreen = () => {
     longitudeDelta: 0.05,
   };
 
-  const apiKey = "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+  const apiKey = "AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU";
 
   useEffect(() => {
     const requestLocationPermission = async () => {

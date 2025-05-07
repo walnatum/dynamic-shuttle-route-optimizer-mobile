@@ -20,7 +20,7 @@ const TrafficScreen = ({ navigation }) => {
     const [currentLocation, setCurrentLocation] = useState('Kampala');
     const [showOverlay, setShowOverlay] = useState(true);
     const mapRef = useRef(null);
-    const apiKey = 'AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg';
+    const apiKey = 'AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU';
 
     const goToHome = () => navigation.navigate("HomeScreen");
     const goToWeather = () => navigation.navigate("WeatherScreen");
