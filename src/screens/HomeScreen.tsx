@@ -86,6 +86,7 @@ const HomeScreen = () => {
 
   // Load driver_code from AsyncStorage on mount
   useEffect(() => {
+    navigation.setOptions({ headerShown: false });
     const loadDriverCode = async () => {
       try {
         const storedCode = await AsyncStorage.getItem("driver_code");
@@ -532,7 +533,17 @@ const HomeScreen = () => {
   ).current;
 
   return (
-    <View style={styles.container}>
+          <View style={styles.container}>
+            <View style={styles.customHeaderOverlay}>
+        <Icon
+          name="drive-eta"  // Or "navigate" or "map"
+          size={24}
+          color="#2563EB"
+          style={styles.headerIcon}
+        />
+        <Text style={styles.customHeaderText}>RouteWise - Driver</Text>
+      </View>
+
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -804,7 +815,7 @@ z
           <View style={styles.overlayContent}>
             <View style={styles.header}>
               <Icon name="verified-user" size={28} color="#007AFF" />
-              <Text style={styles.overlayTitle}>Driver Verification</Text>
+              <Text style={styles.overlayTitle}>Assistant Code </Text>
             </View>
 
             <Text style={styles.overlayText}>

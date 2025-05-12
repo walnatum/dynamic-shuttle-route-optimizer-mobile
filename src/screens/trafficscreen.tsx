@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import styles from "./styles/TrafficscreenStyles";
 
 const TrafficScreen = ({ navigation }) => {
+
     const initialRegion = {
         latitude: 0.3476,
         longitude: 32.5825,
@@ -135,6 +136,8 @@ const TrafficScreen = ({ navigation }) => {
     };
 
     useEffect(() => {
+        
+    navigation.setOptions({ headerShown: false });
         fetchNearbyRoadsTraffic(initialRegion.latitude, initialRegion.longitude);
         const interval = setInterval(() => {
             fetchNearbyRoadsTraffic(region.latitude, region.longitude);
@@ -158,6 +161,16 @@ const TrafficScreen = ({ navigation }) => {
 
     return (
         <View style={styles.container}>
+            
+            <View style={styles.customHeaderOverlay}>
+        <Icon
+          name="traffic-light"  // Or "navigate" or "map"
+          size={24}
+          color="#2563EB"
+          style={styles.headerIcon}
+        />
+        <Text style={styles.customHeaderText}>RouteWise - Traffic</Text>
+      </View>
             <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
@@ -223,10 +236,10 @@ const TrafficScreen = ({ navigation }) => {
             )}
 
             <View style={styles.floatingButtons}>
-                <TouchableOpacity style={styles.floatingButton} onPress={goToHome}>
+                {/* <TouchableOpacity style={styles.floatingButton} onPress={goToHome}>
                     <Icon name="home" size={24} color="#007AFF" style={styles.buttonIcon} />
                     <Text style={styles.buttonText}>Home</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                 <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
                     <Icon name="cloud" size={24} color="#007AFF" style={styles.buttonIcon} />
                     <Text style={styles.buttonText}>Weather</Text>

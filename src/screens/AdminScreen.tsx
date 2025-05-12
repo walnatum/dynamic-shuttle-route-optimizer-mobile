@@ -100,7 +100,7 @@ type ShuttleTrackingState = {
 };
 
 // --- Component ---
-const AdminScreen = () => {
+const AdminScreen = ({ navigation }: { navigation: any }) => {
   // --- State ---
   const [viewMode, setViewMode] = useState<"initial" | "school-manage" | "shuttleTracking">("initial");
   const [schools, setSchools] = useState<School[]>([]);
@@ -548,6 +548,7 @@ const AdminScreen = () => {
 
   // Polling for real-time updates (disabled during simulation)
   useEffect(() => {
+    navigation.setOptions({ headerShown: false });
     let intervalId: NodeJS.Timeout | null = null;
     if (shuttleTrackingState.selectedShuttleRegNumber && !isSimulating) {
       intervalId = setInterval(() => {
@@ -794,6 +795,15 @@ const AdminScreen = () => {
 
   return (
     <View style={styles.container}>
+                  <View style={styles.customHeaderOverlay}>
+        <Icon
+          name="admin-panel-settings"  // Or "navigate" or "map"
+          size={24}
+          color="#2563EB"
+          style={styles.headerIcon}
+        />
+        <Text style={styles.customHeaderText}>RouteWise - Admin</Text>
+      </View>
       {viewMode === "initial" && (
         <View style={styles.initialView}>
           <Text style={styles.dashboardTitle}>Admin Dashboard</Text>

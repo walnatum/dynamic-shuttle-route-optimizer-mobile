@@ -888,6 +888,7 @@ const WeatherScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
+    navigation.setOptions({ headerShown: false });
     const loadDefaultWeather = async () => {
       const weather = await fetchWeatherData(initialRegion.latitude, initialRegion.longitude);
       if (weather) {
@@ -896,10 +897,21 @@ const WeatherScreen = ({ navigation }) => {
       }
     };
     loadDefaultWeather();
-  }, []);
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
+
+            <View style={styles.customHeaderOverlay}>
+              <Icon
+                name="cloud"  // Or "navigate" or "map"
+                size={24}
+                color="#2563EB"
+                style={styles.headerIcon}
+              />
+              <Text style={styles.customHeaderText}>RouteWise - Weather</Text>
+            </View>
+      
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -981,10 +993,10 @@ const WeatherScreen = ({ navigation }) => {
       )}
 
       <View style={styles.floatingButtons}>
-      <TouchableOpacity style={styles.floatingButton} onPress={goToHome}>
+      {/* <TouchableOpacity style={styles.floatingButton} onPress={goToHome}>
       <Icon name="home" size={24} color="#007AFF" style={styles.buttonIconHome} />
       <Text style={styles.buttonTextHome}>Home</Text>
-       </TouchableOpacity>
+       </TouchableOpacity> */}
         <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
           <Icon name="cloud" size={24} color="#007AFF" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Weather</Text>

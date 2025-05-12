@@ -40,6 +40,8 @@ const CrashScreen = ({ navigation }) => {
   const goToCrash = () => navigation.navigate("CrashScreen");
 
   useEffect(() => {
+    
+    navigation.setOptions({ headerShown: false });
     try {
       const validCrashes = crashesData.filter(crash => {
         const lat = parseFloat(crash.lat);
@@ -162,6 +164,15 @@ const CrashScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+                  <View style={styles.customHeaderOverlay}>
+        <Icon
+          name="alert"  // Or "navigate" or "map"
+          size={24}
+          color="#2563EB"
+          style={styles.headerIcon}
+        />
+        <Text style={styles.customHeaderText}>RouteWise - Crash</Text>
+      </View>
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -333,10 +344,10 @@ const CrashScreen = ({ navigation }) => {
       )}
 
       <View style={styles.floatingButtons}>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToHome}>
+        {/* <TouchableOpacity style={styles.floatingButton} onPress={goToHome}>
           <Icon name="home" size={24} color="#007AFF" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Home</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
           <Icon name="cloud" size={24} color="#007AFF" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Weather</Text>

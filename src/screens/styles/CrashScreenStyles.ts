@@ -165,6 +165,34 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f5f5f5',
     },
+    customHeaderOverlay: {
+        height: 70,  // Slightly taller for better proportions
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#E0E0E0',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 3,  // For Android shadow
+        flexDirection: 'row',
+        alignItems: 'center',
+        zIndex: 10, 
+      },
+      customHeaderText: {
+        color: '#2563EB',  // More vibrant blue
+        fontSize: 22,
+        fontWeight: '700',  // Semi-bold
+        fontStyle: 'italic',
+        letterSpacing: 0.5,
+        marginLeft: 10,  // Space after icon
+        includeFontPadding: false,  // Better text alignment
+      },
+      headerIcon: {
+        marginRight: 8,  // Space between icon and text
+      },
     map: {
         ...StyleSheet.absoluteFillObject,
     },
@@ -182,6 +210,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         elevation: 3,
+        marginTop:50,
+
     },
     searchInput: {
         flex: 1,

@@ -1120,13 +1120,13 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
           style={[styles.tabButton, activeTab === "routes" && styles.activeTab]}
           onPress={() => setActiveTab("routes")}
         >
-          <Text style={styles.tabText}>Shuttle Routes</Text>
+          <Text style={styles.tabText}>Shuttle Updates</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === "crowdsource" && styles.activeTab]}
           onPress={() => setActiveTab("crowdsource")}
         >
-          <Text style={styles.tabText}>Crowd Updates</Text>
+          <Text style={styles.tabText}>Crowd Sourcing</Text>
         </TouchableOpacity>
       </View>
 

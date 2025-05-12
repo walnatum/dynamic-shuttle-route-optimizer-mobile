@@ -621,6 +621,7 @@ const ParentScreen = () => {
   const apiKey = "AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU";
 
   useEffect(() => {
+    navigation.setOptions({ headerShown: false });
     const requestLocationPermission = async () => {
       try {
         if (Platform.OS === "android") {
@@ -907,6 +908,16 @@ const ParentScreen = () => {
 
   return (
     <View style={styles.container}>
+      
+      <View style={styles.customHeaderOverlay}>
+        <Icon
+          name="family-restroom"  // Or "navigate" or "map"
+          size={24}
+          color="#2563EB"
+          style={styles.headerIcon}
+        />
+        <Text style={styles.customHeaderText}>RouteWise - Parent</Text>
+      </View>
       <MapView
         ref={mapRef}
         style={styles.map}
