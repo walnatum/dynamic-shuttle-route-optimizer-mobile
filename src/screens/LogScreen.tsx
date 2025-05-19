@@ -93,15 +93,16 @@ const LogScreen = () => {
     }
   };
 
-  const goToAssistant = () => {
+  const goToAssistant = async () => {
     try {
-      navigation.navigate("AssistantScreen", { tempCode: tempCode || "", driverCode: driverCode || "" });
+      const storedDriverCode = await AsyncStorage.getItem("driver_code") || driverCode;
+      navigation.navigate("AssistantScreen", { tempCode: "", driverCode: storedDriverCode });
     } catch (error) {
       console.error("Navigation error:", error);
       Alert.alert("Navigation Error", "Could not navigate to Assistant screen");
     }
   };
-
+  
   const goToParent = () => {
     try {
       navigation.navigate("ParentLogScreen");
