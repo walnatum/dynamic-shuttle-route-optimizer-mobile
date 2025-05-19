@@ -478,7 +478,7 @@ const HomeScreen = () => {
       navigation.navigate("LogScreen");
       return;
     }
-  
+
     setIsGenerating(true);
     setSyncStatus("In Sync");
     try {
@@ -490,22 +490,21 @@ const HomeScreen = () => {
         },
         body: JSON.stringify({ driver_code: driverCode }),
       });
-  
+
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
         console.error("Non-JSON response:", text);
         throw new Error("Server returned non-JSON response");
       }
-  
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate code");
       }
-  
+
       setGeneratedCode(data.code);
       setSyncStatus("Synced");
-      navigation.navigate("LogScreen", { tempCode: data.code, driverCode });
     } catch (error: any) {
       console.error("Error generating code:", error.message);
       setSyncStatus("Not in sync");
@@ -815,7 +814,7 @@ z
           <View style={styles.overlayContent}>
             <View style={styles.header}>
               <Icon name="verified-user" size={28} color="#007AFF" />
-              <Text style={styles.overlayTitle}>Assistant Code </Text>
+              <Text style={styles.overlayTitle}>Assistant Code</Text>
             </View>
 
             <Text style={styles.overlayText}>
@@ -874,6 +873,7 @@ z
         </View>
       )}
 
+      
       {showSearchOverlay && (
         <View style={styles.searchOverlay}>
           <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.searchOverlayContent}>

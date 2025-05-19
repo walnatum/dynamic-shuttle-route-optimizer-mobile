@@ -94,12 +94,8 @@ const LogScreen = () => {
   };
 
   const goToAssistant = () => {
-    if (!tempCode || !driverCode) {
-      Alert.alert("Error", "Please log in first to generate a driver code.");
-      return;
-    }
     try {
-      navigation.navigate("AssistantScreen", { tempCode, driverCode });
+      navigation.navigate("AssistantScreen", { tempCode: tempCode || "", driverCode: driverCode || "" });
     } catch (error) {
       console.error("Navigation error:", error);
       Alert.alert("Navigation Error", "Could not navigate to Assistant screen");
