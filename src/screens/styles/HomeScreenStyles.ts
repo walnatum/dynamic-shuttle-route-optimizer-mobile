@@ -670,6 +670,77 @@ const styles = StyleSheet.create({
     color: "#333",
     fontWeight: "500",
   },
+
+  simulateButton: {
+  backgroundColor: '#007AFF',
+  padding: 12,
+  borderRadius: 25,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginTop: 15,
+  width: '80%',
+  alignSelf: 'center',
+},
+movingMarker: {
+  backgroundColor: 'white',
+  padding: 5,
+  borderRadius: 20,
+},
+simulationTimeContainer: {
+  position: 'absolute',
+  top: 100,
+  left: 0,
+  right: 0,
+  backgroundColor: 'rgba(255,255,255,0.9)',
+  padding: 10,
+  alignItems: 'center',
+},
+simulationTimeText: {
+  color: '#007AFF',
+  fontWeight: 'bold',
+},
+rerouteButton: {
+  position: 'absolute',
+  right: 20,
+  bottom: 150,
+  backgroundColor: 'rgba(0,122,255,0.8)',
+  padding: 12,
+  borderRadius: 25,
+},
+startButton: {
+  position: 'absolute',
+  left: 20,
+  bottom: 150,
+  backgroundColor: 'rgba(0,122,255,0.8)',
+  padding: 12,
+  borderRadius: 25,
+},
+simulationButtonText: {
+  color: 'white',
+  fontWeight: 'bold',
+},
+cancelSimulationButton: {
+  position: 'absolute',
+  top: 100,
+  right: 20,
+  backgroundColor: 'rgba(255,255,255,0.9)',
+  borderRadius: 20,
+  padding: 5,
+},
+durationText: {
+  color: '#007AFF',
+  fontWeight: 'bold',
+  marginTop: 5,
+},
+legDurationText: {
+  color: '#007AFF',
+  fontSize: 12,
+  marginTop: 5,
+},
+simulationButtonDisabled: {
+  opacity: 0.6,
+},
 });
 
 export default styles;
