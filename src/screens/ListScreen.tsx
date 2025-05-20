@@ -98,12 +98,9 @@ const ListScreen = () => {
         throw new Error(`Failed to update student. Status: ${updateResponse.status}`);
       }
 
-      const updatedStudentData = await updateResponse.json();
-      console.log("Updated student:", updatedStudentData);
-
       // Create a ShuttleAssignment
       const assignmentData = {
-        student: updatedStudentData.id,
+        student: studentData.id,
         shuttle: shuttle.reg_number,
       };
       console.log("Creating shuttle assignment:", assignmentData);
@@ -125,7 +122,10 @@ const ListScreen = () => {
       const assignmentResult = await assignmentResponse.json();
       console.log("Created shuttle assignment:", assignmentResult);
 
-      const newStudent: Student = {
+      // Use the student data from the assignment response
+      const updatedStudentData = assignmentResult.student;
+
+      const newStudent = {
         id: updatedStudentData.id,
         name: updatedStudentData.student_name,
         school: updatedStudentData.school_name,
@@ -143,7 +143,7 @@ const ListScreen = () => {
       setStudents((prevStudents) => [...prevStudents, newStudent]);
       setNewStudentCode("");
       Alert.alert("Success", `Student ${newStudent.name} onboarded successfully.`);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error onboarding student:", error.message);
       Alert.alert("Error", error.message || "Failed to onboard student. Check the code or network.");
     }
