@@ -1,0 +1,433 @@
+// import { StyleSheet } from 'react-native';
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: '#f5f5f5',
+//   },
+//   map: {
+//     ...StyleSheet.absoluteFillObject,
+//   },
+//   searchContainer: {
+//     position: 'absolute',
+//     top: 20,
+//     left: 20,
+//     right: 20,
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     backgroundColor: 'white',
+//     borderRadius: 25,
+//     padding: 5,
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//     elevation: 5,
+//   },
+//   searchInput: {
+//     flex: 1,
+//     padding: 10,
+//     fontSize: 16,
+//     color: '#333',
+//   },
+//   searchButton: {
+//     backgroundColor: '#FF0000',
+//     padding: 10,
+//     borderRadius: 20,
+//   },
+//   crashOverlay: {
+//     position: 'absolute',
+//     bottom: 20,
+//     left: 20,
+//     right: 20,
+//     backgroundColor: 'rgba(255, 255, 255, 0.95)',
+//     borderRadius: 15,
+//     padding: 15,
+//     maxHeight: '50%',
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//     elevation: 5,
+//   },
+//   crashCard: {
+//     alignItems: 'center',
+//   },
+//   location: {
+//     fontSize: 20,
+//     fontWeight: 'bold',
+//     color: '#333',
+//     marginBottom: 10,
+//   },
+//   crashDesc: {
+//     fontSize: 16,
+//     fontStyle: 'italic',
+//     color: '#666',
+//     marginBottom: 10,
+//   },
+//   crashDetail: {
+//     fontSize: 14,
+//     color: '#333',
+//     marginVertical: 2,
+//   },
+//   detailRow: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     width: '100%',
+//     marginVertical: 2,
+//   },
+//   detailLabel: {
+//     fontSize: 14,
+//     fontWeight: 'bold',
+//     color: '#333',
+//     flex: 1,
+//   },
+//   detailValue: {
+//     fontSize: 14,
+//     color: '#666',
+//     flex: 2,
+//     textAlign: 'right',
+//   },
+//   cancelIconContainer: {
+//     position: 'absolute',
+//     top: 10,
+//     right: 10,
+//   },
+//   defaultCrash: {
+//     position: 'absolute',
+//     bottom: 20,
+//     left: 20,
+//     right: 20,
+//     alignItems: 'center',
+//   },
+//   defaultTitle: {
+//     fontSize: 24,
+//     fontWeight: 'bold',
+//     color: '#FF0000',
+//     marginBottom: 10,
+//   },
+//   defaultCard: {
+//     backgroundColor: 'rgba(255, 255, 255, 0.95)',
+//     borderRadius: 15,
+//     padding: 20,
+//     alignItems: 'center',
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//     elevation: 5,
+//   },
+//   modalContainer: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+//   },
+//   modalContent: {
+//     backgroundColor: 'white',
+//     borderRadius: 10,
+//     padding: 20,
+//     width: '80%',
+//     alignItems: 'center',
+//   },
+//   modalTitle: {
+//     fontSize: 20,
+//     fontWeight: 'bold',
+//     color: '#333',
+//     marginBottom: 10,
+//   },
+//   modalMessage: {
+//     fontSize: 16,
+//     color: '#666',
+//     marginBottom: 20,
+//     textAlign: 'center',
+//   },
+//   modalButton: {
+//     backgroundColor: '#FF0000',
+//     paddingVertical: 10,
+//     paddingHorizontal: 20,
+//     borderRadius: 5,
+//   },
+//   modalButtonText: {
+//     color: 'white',
+//     fontSize: 16,
+//     fontWeight: 'bold',
+//   },
+// });
+
+// export default styles;
+
+
+
+
+
+import { StyleSheet } from 'react-native';
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+    },
+    customHeaderOverlay: {
+        height: 70,  // Slightly taller for better proportions
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#E0E0E0',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 3,  // For Android shadow
+        flexDirection: 'row',
+        alignItems: 'center',
+        zIndex: 10, 
+      },
+      customHeaderText: {
+        color: '#2563EB',  // More vibrant blue
+        fontSize: 22,
+        fontWeight: '700',  // Semi-bold
+        fontStyle: 'italic',
+        letterSpacing: 0.5,
+        marginLeft: 10,  // Space after icon
+        includeFontPadding: false,  // Better text alignment
+      },
+      headerIcon: {
+        marginRight: 8,  // Space between icon and text
+      },
+    map: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    searchContainer: {
+        position: 'absolute',
+        top: 50,
+        left: 20,
+        right: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'white',
+        borderRadius: 10,
+        padding: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        elevation: 3,
+        marginTop:50,
+
+    },
+    searchInput: {
+        flex: 1,
+        padding: 10,
+        fontSize: 16,
+        color: '#333',
+    },
+    searchButton: {
+        backgroundColor: '#007AFF',
+        padding: 10,
+        borderRadius: 8,
+        marginRight: 5,
+    },
+    crashOverlay: {
+        position: 'absolute',
+        top: '30%',
+        left: 20,
+        right: 20,
+        backgroundColor: 'white',
+        borderRadius: 15,
+        padding: 20,
+        maxHeight: '50%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        elevation: 5,
+    },
+    crashCard: {
+        alignItems: 'center',
+    },
+    location: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    crashTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    detailRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    detailLabel: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    detailValue: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'right',
+        flex: 1,
+    },
+    floatingButtons: {
+        position: 'absolute',
+        bottom: 30,
+        left: 20,
+        right: 20,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        backgroundColor: 'white',
+        borderRadius: 25,
+        padding: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        elevation: 5,
+    },
+    floatingButton: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    buttonIcon: {
+        marginBottom: 5,
+    },
+    buttonText: {
+        fontSize: 12,
+        color: '#007AFF',
+        fontWeight: 'bold',
+    },
+    cancelButton: {
+        backgroundColor: '#FF2D55',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 25,
+        marginTop: 10,
+        alignSelf: 'center',
+    },
+    cancelButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 15,
+        padding: 20,
+        width: '80%',
+        alignItems: 'center',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 10,
+    },
+    modalMessage: {
+        fontSize: 16,
+        color: '#666',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    modalButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 25,
+    },
+    modalButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
+    paginationContainer: {
+        position: 'absolute',
+        bottom: 100,
+        left: 20,
+        right: 20,
+        backgroundColor: 'white',
+        borderRadius: 15,
+        padding: 15,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        elevation: 5,
+    },
+    paginationText: {
+        fontSize: 14,
+        color: '#333',
+    },
+    paginationButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 8,
+        paddingHorizontal: 15,
+        borderRadius: 20,
+    },
+    paginationButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
+    },
+    markerContainer: {
+        alignItems: 'center',
+    },
+    markerText: {
+        fontSize: 10,
+        color: '#FF0000',
+        fontWeight: 'bold',
+    },
+    vehicleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+        justifyContent: 'center',
+    },
+    vehicleText: {
+        fontSize: 16,
+        color: '#333',
+        marginLeft: 10,
+    },
+    infoOverlay: {
+        position: 'absolute',
+        top: '30%',
+        left: 20,
+        right: 20,
+        backgroundColor: 'white',
+        borderRadius: 15,
+        padding: 20,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        elevation: 5,
+    },
+    infoTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 10,
+    },
+    infoText: {
+        fontSize: 16,
+        color: '#666',
+        marginBottom: 5,
+        textAlign: 'center',
+    },
+});
+
+export default styles;

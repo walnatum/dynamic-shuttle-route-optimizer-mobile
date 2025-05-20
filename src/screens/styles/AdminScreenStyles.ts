@@ -1,0 +1,457 @@
+import { StyleSheet } from "react-native";
+
+// --- Styles ---
+const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: "#f8f9fa",
+    },
+    customHeaderOverlay: {
+      height: 70,  // Slightly taller for better proportions
+      backgroundColor: '#FFFFFF',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+      borderBottomWidth: 0.5,
+      borderBottomColor: '#E0E0E0',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 3,  // For Android shadow
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    customHeaderText: {
+      color: '#2563EB',  // More vibrant blue
+      fontSize: 22,
+      fontWeight: '700',  // Semi-bold
+      fontStyle: 'italic',
+      letterSpacing: 0.5,
+      marginLeft: 10,  // Space after icon
+      includeFontPadding: false,  // Better text alignment
+    },
+    headerIcon: {
+      marginRight: 8,  // Space between icon and text
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    error: {
+      color: "red",
+      fontSize: 16,
+      marginBottom: 10,
+      textAlign: "center",
+    },
+    retryButton: {
+      backgroundColor: "#007AFF",
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: 5,
+    },
+    retryText: {
+      color: "white",
+      fontSize: 16,
+    },
+    initialView: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    dashboardTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: 30,
+      color: "#343a40",
+    },
+    menuButton: {
+      width: "80%",
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 15,
+      marginBottom: 15,
+      borderRadius: 8,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 15,
+      paddingVertical: 12,
+      backgroundColor: "white",
+      borderBottomWidth: 1,
+      borderBottomColor: "#dee2e6",
+    },
+    headerText: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#343a40",
+    },
+    backButton: {
+      padding: 5,
+    },
+    addButton: {
+      flexDirection: "row",
+      backgroundColor: "#007AFF",
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 5,
+      alignItems: "center",
+    },
+    addButtonText: {
+      color: "white",
+      marginLeft: 5,
+      fontSize: 14,
+    },
+    listContent: {
+      padding: 10,
+    },
+    noData: {
+      textAlign: "center",
+      marginTop: 20,
+      color: "#6c757d",
+      fontSize: 15,
+    },
+    card: {
+      backgroundColor: "white",
+      borderRadius: 8,
+      marginBottom: 15,
+      overflow: "hidden",
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 1.41,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 15,
+      paddingHorizontal: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: "#eee",
+    },
+    schoolHeaderInfo: {
+      flex: 1,
+      marginRight: 10,
+    },
+    schoolName: {
+      fontSize: 17,
+      fontWeight: "bold",
+      color: "#343a40",
+    },
+    schoolMeta: {
+      fontSize: 13,
+      color: "#6c757d",
+      marginTop: 2,
+    },
+    cardContent: {
+      padding: 15,
+    },
+    detailTextLabel: {
+      fontSize: 14,
+      color: "#495057",
+      fontWeight: "600",
+      marginTop: 5,
+    },
+    detailTextValue: {
+      fontSize: 14,
+      color: "#6c757d",
+      marginBottom: 5,
+    },
+    separatorThin: {
+      height: 1,
+      backgroundColor: "#e9ecef",
+      marginVertical: 10,
+    },
+    separatorThinModal: {
+      height: 1,
+      backgroundColor: "#e9ecef",
+      marginVertical: 15,
+    },
+    separator: {
+      height: 1,
+      backgroundColor: "#dee2e6",
+      marginVertical: 15,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#495057",
+      marginBottom: 10,
+    },
+    classGroup: {
+      marginBottom: 5,
+    },
+    classHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: "#f8f9fa",
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      borderRadius: 4,
+      marginBottom: 5,
+    },
+    className: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: "#6f42c1",
+    },
+    classContent: {
+      paddingLeft: 10,
+      paddingTop: 5,
+      borderLeftWidth: 2,
+      borderLeftColor: "#e0cffc",
+      marginLeft: 5,
+    },
+    emptyClassContainer: {
+      paddingVertical: 10,
+    },
+    studentItem: {
+      backgroundColor: "#ffffff",
+      borderRadius: 4,
+      padding: 10,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: "#e9ecef",
+    },
+    studentItemHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    studentNameText: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#343a40",
+      marginRight: 8,
+    },
+    actionIcons: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    studentItemDetails: {
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: "#f1f3f5",
+    },
+    detailItem: {
+      fontSize: 13,
+      color: "#495057",
+      marginBottom: 3,
+    },
+    detailLabel: {
+      fontWeight: "600",
+      color: "#343a40",
+    },
+    inlineAddButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#f0eaff",
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 4,
+      marginTop: 10,
+      alignSelf: "flex-start",
+    },
+    inlineAddButtonText: {
+      marginLeft: 8,
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    schoolActionButtons: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginTop: 10,
+    },
+    actionButton: {
+      flexDirection: "row",
+      backgroundColor: "#007AFF",
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 5,
+      alignItems: "center",
+      marginLeft: 10,
+    },
+    shuttleTrackingContainer: {
+      flex: 1,
+    },
+    listHeader: {
+      fontSize: 18,
+      fontWeight: "bold",
+      padding: 15,
+      backgroundColor: "#e9ecef",
+    },
+    listItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 15,
+      paddingHorizontal: 15,
+      backgroundColor: "white",
+    },
+    listItemText: {
+      fontSize: 16,
+    },
+    mapPlaceholder: {
+      height: 250,
+      backgroundColor: "#e0e0e0",
+      justifyContent: "center",
+      alignItems: "center",
+      margin: 15,
+      borderRadius: 8,
+    },
+    map: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    studentItemSimple: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 10,
+      paddingHorizontal: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: "#eee",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalContainer: {
+      width: "90%",
+      maxHeight: "85%",
+      backgroundColor: "white",
+      borderRadius: 8,
+      overflow: "hidden",
+    },
+    confirmModalContainer: {
+      width: "80%",
+      backgroundColor: "white",
+      borderRadius: 8,
+      overflow: "hidden",
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: "#dee2e6",
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+    },
+    modalContent: {
+      padding: 20,
+    },
+    confirmModalText: {
+      fontSize: 16,
+      color: "#343a40",
+      marginBottom: 20,
+      textAlign: "center",
+    },
+    confirmModalButtons: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    inputLabel: {
+      fontSize: 14,
+      marginBottom: 5,
+      color: "#495057",
+      fontWeight: "600",
+    },
+    contextLabel: {
+      fontSize: 14,
+      color: "#6c757d",
+      marginBottom: 2,
+    },
+    contextValue: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: "#343a40",
+      marginBottom: 8,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: "#ced4da",
+      borderRadius: 4,
+      padding: 10,
+      marginBottom: 15,
+      fontSize: 15,
+    },
+    pickerContainer: {
+      borderWidth: 1,
+      borderColor: "#ced4da",
+      borderRadius: 4,
+      marginBottom: 15,
+      justifyContent: "center",
+    },
+    pickerStyle: {
+      height: 50,
+    },
+    switchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    switchLabel: {
+      fontSize: 14,
+      marginRight: 10,
+      color: "#495057",
+      fontWeight: "600",
+    },
+    switch: {
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+      borderRadius: 15,
+    },
+    switchText: {
+      color: "white",
+      fontWeight: "bold",
+    },
+    button: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderRadius: 5,
+      marginTop: 10,
+    },
+    primaryButton: {
+      backgroundColor: "#007AFF",
+    },
+    secondaryButton: {
+      backgroundColor: "#6f42c1",
+    },
+    dangerButton: {
+      backgroundColor: "#dc3545",
+    },
+    confirmButton: {
+      backgroundColor: "#dc3545",
+      flex: 1,
+      marginLeft: 10,
+    },
+    cancelButton: {
+      backgroundColor: "#6c757d",
+      flex: 1,
+      marginRight: 10,
+    },
+    buttonText: {
+      color: "white",
+      textAlign: "center",
+      fontSize: 16,
+      fontWeight: "bold",
+    },
+});
+
+export default styles;
