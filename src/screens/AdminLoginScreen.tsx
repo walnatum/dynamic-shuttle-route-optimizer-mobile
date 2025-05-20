@@ -55,7 +55,8 @@ const AdminLoginScreen: React.FC = () => {
           "Accept": "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        // body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: "", password: "nangosha" }), // TODO; remove this
       });
 
       const data = await response.json();

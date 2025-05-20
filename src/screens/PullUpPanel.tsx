@@ -1,15 +1,26 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Animated, PanResponder, Dimensions, StyleSheet, Image, TextInput } from "react-native";
+import Config from "react-native-config";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
-interface Message {
+// TODO; add support for voting and downvoting, notifications to other drivers
+
+interface Reporter {
   id: string;
-  user: string;
-  text: string;
-  timestamp: Date;
-  route?: string;
-  votes: number;
-  userVote?: 'up' | 'down'; // Track user's vote
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+}
+
+interface RoadEvent {
+  reporter: Reporter;
+  reported_at: string;
+  description: string;
+  id: string;
+  expires_at: string;
+  score: number;
+  userVote?: 'up' | 'down'
 }
 
 interface PullUpPanelProps {
@@ -40,130 +51,113 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
   const [panelHeight] = useState(new Animated.Value(150));
   const maxPanelHeight = screenHeight * 0.85;
   const [activeTab, setActiveTab] = useState<"routes" | "crowdsource">("routes");
-  const [message, setMessage] = useState("");
+  const [roadEvent, setRoadEvent] = useState("");
   const [scrollEnabled, setScrollEnabled] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      user: "Traveler123",
-      text: "North Campus Express is running 10 mins late due to traffic near the Student Center.",
-      timestamp: new Date(Date.now() - 3600000),
-      route: "North Campus Express",
-      votes: 8
-    },
-    {
-      id: "2",
-      user: "CommuterPro",
-      text: "South Campus Loop is unusually crowded right now. Next shuttle in 5 mins.",
-      timestamp: new Date(Date.now() - 1800000),
-      route: "South Campus Loop",
-      votes: 5
-    },
-    {
-      id: "3",
-      user: "DailyRider",
-      text: "East-West Connector has AC issues today. Bring water!",
-      timestamp: new Date(Date.now() - 900000),
-      route: "East-West Connector",
-      votes: 12
-    },
-    {
-      id: "4",
-      user: "ShuttleWatcher",
-      text: "Maintenance work on North route tomorrow from 10AM-2PM. Expect delays.",
-      timestamp: new Date(Date.now() - 7200000),
-      route: "North Campus Express",
-      votes: 15
-    },
-    {
-      id: "5",
-      user: "RouteHelper",
-      text: "New shuttle driver on South route today - please be patient as they learn the route.",
-      timestamp: new Date(Date.now() - 5400000),
-      route: "South Campus Loop",
-      votes: 7
-    },
-  ]);
+  const [roadEvents, setRoadEvents] = useState<RoadEvent[]>([]);
 
-const panResponder = useRef(
-  PanResponder.create({
-    onStartShouldSetPanResponder: (evt, gestureState) => {
-      // Only activate if touch is near the top of the panel (where the handle is)
-      return gestureState.y0 < 50;
-    },
-    onMoveShouldSetPanResponder: (evt, gestureState) => {
-      // Only activate if touch is near the top or if we're moving vertically
-      return gestureState.y0 < 50 || Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-    },
-    onPanResponderGrant: () => {
-      setScrollEnabled(false); // Disable scrolling when dragging starts
-    },
-    onPanResponderMove: (evt, gestureState) => {
-      const newHeight = Math.max(150, Math.min(maxPanelHeight, 150 - gestureState.dy));
-      panelHeight.setValue(newHeight);
-    },
-    onPanResponderRelease: (evt, gestureState) => {
-      const newHeight = gestureState.dy < -50 ? maxPanelHeight : 150;
-      Animated.spring(panelHeight, {
-        toValue: newHeight,
-        useNativeDriver: false,
-      }).start();
-      setScrollEnabled(true); // Re-enable scrolling when dragging ends
-    },
-    onPanResponderTerminate: () => {
-      setScrollEnabled(true); // Re-enable scrolling if gesture is terminated
-    },
-  })
-).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: (evt, gestureState) => {
+        // Only activate if touch is near the top of the panel (where the handle is)
+        return gestureState.y0 < 50;
+      },
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only activate if touch is near the top or if we're moving vertically
+        return gestureState.y0 < 50 || Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderGrant: () => {
+        setScrollEnabled(false); // Disable scrolling when dragging starts
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const newHeight = Math.max(150, Math.min(maxPanelHeight, 150 - gestureState.dy));
+        panelHeight.setValue(newHeight);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const newHeight = gestureState.dy < -50 ? maxPanelHeight : 150;
+        Animated.spring(panelHeight, {
+          toValue: newHeight,
+          useNativeDriver: false,
+        }).start();
+        setScrollEnabled(true); // Re-enable scrolling when dragging ends
+      },
+      onPanResponderTerminate: () => {
+        setScrollEnabled(true); // Re-enable scrolling if gesture is terminated
+      },
+    })
+  ).current;
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return;
+  useEffect(() => {
+    const fetchRoadEvents = async () => {
+      try {
+        const response = await fetch(`${Config.API_BASE_URL}/api/road-events/`);
+        const data = await response.json();
+
+        setRoadEvents(data);
+      } catch (error) {
+        console.error("Error fetching road events:", error);
+      }
+    };
+    fetchRoadEvents();
+  }, []);
+
+  const reportEvent =  async () => {
+    if (!roadEvent.trim()) return;
     
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      user: "You",
-      text: message,
-      timestamp: new Date(),
-      votes: 0
+    const newRoadEvent: RoadEvent = {
+      description: roadEvent,
+      reported_at: new Date(),
     };
     
-    setMessages([newMessage, ...messages]);
-    setMessage("");
+    // setRoadEvents([newRoadEvent, ...roadEvents]); # TODO; change this
+    setRoadEvent("");
+
+    try {
+        await fetch(`${Config.API_BASE_URL}/api/road-events/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newRoadEvent),
+        });
+      } catch (error) {
+        console.error("Error fetching road events:", error);
+      }
   };
 
   const handleVote = (id: string, voteType: 'up' | 'down') => {
-    setMessages(messages.map(msg => {
-      if (msg.id === id) {
+    setRoadEvents(roadEvents.map(rdEvent => {
+      if (rdEvent.id === id) {
         // If user is changing their vote
-        if (msg.userVote === voteType) {
-          return msg; // No change if clicking same vote again
+        if (rdEvent.userVote === voteType) {
+          return rdEvent; // No change if clicking same vote again
         }
         
         // Calculate vote change
         let voteChange = 0;
         if (voteType === 'up') {
-          voteChange = msg.userVote === 'down' ? 2 : 1;
+          voteChange = rdEvent.userVote === 'down' ? 2 : 1;
         } else {
-          voteChange = msg.userVote === 'up' ? -2 : -1;
+          voteChange = rdEvent.userVote === 'up' ? -2 : -1;
         }
         
         return {
-          ...msg,
-          votes: msg.votes + voteChange,
+          ...rdEvent,
+          score: rdEvent.score + voteChange,
           userVote: voteType
         };
       }
-      return msg;
+      return rdEvent;
     }));
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (date: string) => {
+    // return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Get top 3 most voted messages
-  const topMessages = [...messages]
-    .sort((a, b) => b.votes - a.votes)
+  // Get top 3 most voted road events
+  const topVotedRoadEvents = [...roadEvents]
+    .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 
   return (
@@ -194,8 +188,8 @@ const panResponder = useRef(
           {/* Top Community Alerts */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Community Alerts</Text>
-            {topMessages.map((msg, index) => (
-              <View key={msg.id} style={[styles.alertCard, index === 0 && styles.topAlert]}>
+            {topVotedRoadEvents.map((roadEvent, index) => (
+              <View key={roadEvent.id} style={[styles.alertCard, index === 0 && styles.topAlert]}>
                 <View style={styles.alertHeader}>
                   <Icon 
                     name={index === 0 ? "warning" : "info"} 
@@ -204,16 +198,16 @@ const panResponder = useRef(
                   />
                   <Text style={styles.alertTitle}>
                     {index === 0 ? "Top Alert" : `Alert #${index + 1}`}
-                    {msg.route && ` • ${msg.route}`}
+                    {roadEvent.route && ` • ${roadEvent.route}`}
                   </Text>
                 </View>
-                <Text style={styles.alertText}>{msg.text}</Text>
+                <Text style={styles.alertText}>{roadEvent.description}</Text>
                 <View style={styles.alertFooter}>
-                  <Text style={styles.alertUser}>{msg.user}</Text>
-                  <Text style={styles.alertTime}>{formatTime(msg.timestamp)}</Text>
+                  <Text style={styles.alertUser}>{roadEvent.reporter.first_name}</Text>
+                  <Text style={styles.alertTime}>{formatTime(roadEvent.reported_at)}</Text>
                   <View style={styles.voteCount}>
                     <Icon name="thumb-up" size={14} color="#4CAF50" />
-                    <Text style={styles.voteText}>{msg.votes}</Text>
+                    <Text style={styles.voteText}>{roadEvent.score}</Text>
                   </View>
                 </View>
               </View>
@@ -281,26 +275,26 @@ const panResponder = useRef(
         <View style={styles.crowdsourceContainer}>
           <ScrollView style={styles.messagesContainer}>
             scrollEnabled={scrollEnabled}
-            {messages.map((msg) => (
-              <View key={msg.id} style={styles.messageCard}>
-                <View style={styles.messageHeader}>
-                  <Text style={styles.messageUser}>{msg.user}</Text>
-                  <Text style={styles.messageTime}>{formatTime(msg.timestamp)}</Text>
+            {roadEvents.map((roadEvent) => (
+              <View key={roadEvent.id} style={styles.roadEventCard}>
+                <View style={styles.roadEventHeader}>
+                  <Text style={styles.roadEventUser}>{roadEvent.reporter.first_name}</Text>
+                  <Text style={styles.roadEventTime}>{formatTime(roadEvent.reported_at)}</Text>
                 </View>
-                <Text style={styles.messageText}>{msg.text}</Text>
+                <Text style={styles.roadEventText}>{roadEvent.description}</Text>
                 <View style={styles.voteContainer}>
                   <TouchableOpacity 
-                    style={[styles.voteButton, msg.userVote === 'up' && styles.votedUp]}
-                    onPress={() => handleVote(msg.id, 'up')}
+       crowd             style={[styles.voteButton, roadEvent.userVote === 'up' && styles.votedUp]}
+                    onPress={() => handleVote(roadEvent.id, 'up')}
                   >
-                    <Icon name="thumb-up" size={16} color={msg.userVote === 'up' ? "#fff" : "#4CAF50"} />
+                    <Icon name="thumb-up" size={16} color={roadEvent.userVote === 'up' ? "#fff" : "#4CAF50"} />
                   </TouchableOpacity>
-                  <Text style={styles.voteCountText}>{msg.votes}</Text>
+                  <Text style={styles.voteCountText}>{roadEvent.score}</Text>
                   <TouchableOpacity 
-                    style={[styles.voteButton, msg.userVote === 'down' && styles.votedDown]}
-                    onPress={() => handleVote(msg.id, 'down')}
+                    style={[styles.voteButton, roadEvent.userVote === 'down' && styles.votedDown]}
+                    onPress={() => handleVote(roadEvent.id, 'down')}
                   >
-                    <Icon name="thumb-down" size={16} color={msg.userVote === 'down' ? "#fff" : "#F44336"} />
+                    <Icon name="thumb-down" size={16} color={roadEvent.userVote === 'down' ? "#fff" : "#F44336"} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -312,14 +306,14 @@ const panResponder = useRef(
               <TextInput
                 style={styles.messageInput}
                 placeholder="Share an update about shuttle services..."
-                value={message}
-                onChangeText={setMessage}
+                value={roadEvent}
+                onChangeText={setRoadEvent}
                 multiline
               />
               <TouchableOpacity 
                 style={styles.sendButton} 
-                onPress={handleSendMessage}
-                disabled={!message.trim()}
+                onPress={reportEvent}
+                disabled={!roadEvent.trim()}
               >
                 <Icon name="send" size={20} color="#fff" />
               </TouchableOpacity>
@@ -343,7 +337,7 @@ const panResponder = useRef(
           style={styles.floatingButton} 
           onPress={() => {
             setActiveTab("routes");
-            useCurrentLocation();
+            // useCurrentLocation();
           }}
         >
           <Icon name="my-location" size={20} color="#fff" />
@@ -429,7 +423,7 @@ panelHandleBar: {
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#333",
+    // color: "#333",
     marginBottom: 12,
     color: '#007AFF',
   },
@@ -441,7 +435,7 @@ panelHandleBar: {
     paddingHorizontal: 15,
     paddingTop: 10,
   },
-  messageCard: {
+  roadEventCard: {
     backgroundColor: '#f8f9ff',
     borderRadius: 10,
     padding: 12,
@@ -449,22 +443,22 @@ panelHandleBar: {
     borderLeftWidth: 3,
     borderLeftColor: '#007AFF',
   },
-  messageHeader: {
+  roadEventHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 5,
     flexWrap: 'wrap',
   },
-  messageUser: {
+  roadEventUser: {
     fontWeight: 'bold',
     color: '#007AFF',
     marginRight: 8,
   },
-  messageTime: {
+  roadEventTime: {
     fontSize: 12,
     color: '#666',
   },
-  messageText: {
+  roadEventText: {
     color: '#333',
     marginBottom: 8,
   },

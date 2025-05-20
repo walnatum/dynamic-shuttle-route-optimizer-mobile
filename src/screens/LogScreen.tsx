@@ -59,13 +59,15 @@ const LogScreen = () => {
 
     setIsLoading(true);
     try {
+      console.log("url: ", Config.API_BASE_URL)
       const response = await fetch(`${Config.API_BASE_URL}/api/login/`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        // body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: "tumuhaise@gmail.com", password: "nangosha" }), // TODO; remove this
       });
 
       const data = await response.json();
