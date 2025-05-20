@@ -1,31 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Button,
-  Alert,
-  PermissionsAndroid,
-  Platform,
-  TextInput,
-  ScrollView,
-  Dimensions,
-} from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
-import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Callout } from "react-native-maps";
-import Icon from "react-native-vector-icons/MaterialIcons";
-import Geolocation from '@react-native-community/geolocation';
-import { Linking } from 'react-native';
-import styles from "./styles/ParentScreenStyles";
-import PullUpPanel from "./PullUpPanel";
-
-export type RootStackParamList = {
-  HomeScreen: undefined;
-  ParentScreen: undefined;
-  RouteTrackerScreen: undefined;
-  TrafficScreen: undefined;
-  WeatherScreen: undefined;
-};
+import React, { useState, useRef } from 'react';
+import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { decode } from '@mapbox/polyline'; // For decoding Google Maps polyline
 
 const ParentScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -189,7 +165,7 @@ const ParentScreen = () => {
       }
     } catch (error) {
       Alert.alert("Error", "Failed to fetch driving route: " + error.message);
-      return;
+      return;s
     }
 
     setTravelTimesByMode(timesByMode);

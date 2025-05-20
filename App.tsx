@@ -14,7 +14,7 @@ import ListScreen from "./src/screens/ListScreen";
 import LogScreen from "./src/screens/LogScreen";
 import ParentLogScreen from "./src/screens/ParentLogScreen";
 import AdminLoginScreen from "./src/screens/AdminLoginScreen";
-import TrafficScreen from "./src/screens/TrafficScreen";
+import TrafficScreen from "./src/screens/trafficscreen";
 import AdminScreen from "./src/screens/AdminScreen";
 import WeatherScreen from "./src/screens/WeatherScreen";
 import CrashScreen from "./src/screens/CrashScreen";
