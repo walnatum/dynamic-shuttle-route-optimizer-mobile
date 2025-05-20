@@ -343,7 +343,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
         </View>
       )}
       
-      <View style={styles.floatingButtons}>
+      {/* <View style={styles.floatingButtons}>
         <TouchableOpacity 
           style={styles.floatingButton} 
           onPress={() => {
@@ -371,7 +371,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
           <Icon name={activeTab === "routes" ? "chat" : "directions-bus"} size={20} color="#fff" />
           <Text style={styles.buttonText}>{activeTab === "routes" ? "Updates" : "Routes"}</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
     </Animated.View>
   );
 };

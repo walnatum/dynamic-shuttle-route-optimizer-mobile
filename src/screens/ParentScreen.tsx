@@ -4,66 +4,120 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import { decode } from '@mapbox/polyline'; // For decoding Google Maps polyline
 
 const ParentScreen = () => {
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
-  const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [smartRouteCoordinates, setSmartRouteCoordinates] = useState([]);
-  const [travelTimes, setTravelTimes] = useState([]);
-  const [smartTravelTimes, setSmartTravelTimes] = useState([]);
-  const [travelTimesByMode, setTravelTimesByMode] = useState(null);
-  const [startMarker, setStartMarker] = useState(null);
-  const [destinationMarker, setDestinationMarker] = useState(null);
-  const [routeDetails, setRouteDetails] = useState(null);
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const mapRef = useRef<MapView>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+  const [start, setStart] = useState<string>("");
+  const [end, setEnd] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [parkingMarkers, setParkingMarkers] = useState<{ name: string; latitude: number; longitude: number }[]>([]);
+  const [searchMarkers, setSearchMarkers] = useState<{ name: string; latitude: number; longitude: number }[]>([]);
+  const [travelTimes, setTravelTimes] = useState<string[]>([]);
+  const [showRouteInput, setShowRouteInput] = useState<boolean>(false);
+  const [travelTimesByMode, setTravelTimesByMode] = useState<{ [key: string]: string } | null>(null);
+  const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [startMarker, setStartMarker] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<string>("Checking...");
 
-  const mapRef = useRef(null);
-
-  const apiKey = 'AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU'; // Your Google Maps API key
-  const backendUrl = 'http://10.0.2.2:5000/get_route'; // Update if hosted on Render
-
-  const getPlaceCoordinates = async (place) => {
-    if (!place) return null;
-
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(place)}&key=${apiKey}`;
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.status === 'OK' && data.results.length > 0) {
-        const location = data.results[0].geometry.location;
-        return { latitude: location.lat, longitude: location.lng };
-      } else if (data.status === 'ZERO_RESULTS') {
-        const fallbackUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(place + ', Uganda')}&key=${apiKey}`;
-        const fallbackResponse = await fetch(fallbackUrl);
-        const fallbackData = await fallbackResponse.json();
-        if (fallbackData.status === 'OK' && fallbackData.results.length > 0) {
-          const location = fallbackData.results[0].geometry.location;
-          return { latitude: location.lat, longitude: location.lng };
-        }
-        console.warn(`Geocoding failed for ${place}: ${data.status}`);
-        return null;
-      }
-      return null;
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      return null;
-    }
+  const defaultLocation = {
+    latitude: 0.3476,
+    longitude: 32.5825,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
   };
 
-  const decodePolyline = (encoded) => {
-    const points = decode(encoded);
-    return points.map(point => ({ latitude: point[0], longitude: point[1] }));
+  const apiKey = "AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU";
+
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+    const requestLocationPermission = async () => {
+      try {
+        if (Platform.OS === "android") {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            {
+              title: "Location Permission",
+              message: "This app needs access to your location for tracking.",
+              buttonNeutral: "Ask Me Later",
+              buttonNegative: "Cancel",
+              buttonPositive: "OK",
+            }
+          );
+          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            setPermissionGranted(true);
+            setLocationStatus("Permission granted, checking location services...");
+          } else {
+            setPermissionGranted(false);
+            setLocationStatus("Permission denied");
+          }
+        }
+      } catch (err) {
+        console.error("Permission request error:", err);
+        setLocationStatus("Permission request failed");
+      }
+    };
+    requestLocationPermission();
+  }, []);
+
+  const getPlaceCoordinates = async (query: string) => {
+    // First, try the Autocomplete API
+    const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${apiKey}&location=${defaultLocation.latitude},${defaultLocation.longitude}&radius=500000`;
+    try {
+      const autocompleteResponse = await fetch(autocompleteUrl);
+      const autocompleteData = await autocompleteResponse.json();
+      if (autocompleteData.status === "OK" && autocompleteData.predictions.length > 0) {
+        const placeId = autocompleteData.predictions[0].place_id;
+        // Use Place Details API to get coordinates
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}`;
+        const detailsResponse = await fetch(detailsUrl);
+        const detailsData = await detailsResponse.json();
+        if (detailsData.status === "OK") {
+          const { lat, lng } = detailsData.result.geometry.location;
+          return {
+            name: detailsData.result.name,
+            latitude: lat,
+            longitude: lng,
+          };
+        }
+      }
+    } catch (error) {
+      console.error("Autocomplete/Place Details error:", error);
+    }
+
+    // Fallback to Geocoding API
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}&region=ug`;
+    try {
+      const geocodeResponse = await fetch(geocodeUrl);
+      const geocodeData = await geocodeResponse.json();
+      if (geocodeData.status === "OK" && geocodeData.results.length > 0) {
+        const { lat, lng } = geocodeData.results[0].geometry.location;
+        return {
+          name: geocodeData.results[0].formatted_address,
+          latitude: lat,
+          longitude: lng,
+        };
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+    }
+
+    return null;
   };
 
   const calculateRoute = async () => {
     if (!start || !end) {
-      Alert.alert('Error', 'Please enter both start and end locations.');
+      Alert.alert("Error", "Please enter both start and end locations.");
       return;
     }
 
     let startCoords, endCoords;
     try {
+      // Get coordinates for start location
       const startResult = await getPlaceCoordinates(start);
       if (!startResult) {
-        Alert.alert('Error', `Could not find the starting location: ${start}`);
+        Alert.alert("Error", "Could not find the starting location: " + start);
         return;
       }
       startCoords = { lat: startResult.latitude, lng: startResult.longitude };
@@ -72,9 +126,10 @@ const ParentScreen = () => {
         longitude: startResult.longitude,
       });
 
+      // Get coordinates for end location
       const endResult = await getPlaceCoordinates(end);
       if (!endResult) {
-        Alert.alert('Error', `Could not find the destination: ${end}`);
+        Alert.alert("Error", "Could not find the destination: " + end);
         return;
       }
       endCoords = { lat: endResult.latitude, lng: endResult.longitude };
@@ -82,223 +137,380 @@ const ParentScreen = () => {
         latitude: endResult.latitude,
         longitude: endResult.longitude,
       });
+    } catch (error) {
+      Alert.alert("Error", "Failed to find locations: " + error.message);
+      return;
+    }
 
-      // Fetch Google Maps route
-      const drivingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoords.lat},${startCoords.lng}&destination=${endCoords.lat},${endCoords.lng}&key=${apiKey}&mode=driving`;
+    const modes = ["driving"];
+    let timesByMode = {};
+    let points = [];
+
+    const drivingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoords.lat},${startCoords.lng}&destination=${endCoords.lat},${endCoords.lng}&key=${apiKey}&mode=driving`;
+    try {
       const response = await fetch(drivingUrl);
       const data = await response.json();
-      if (data.status === 'OK') {
-        const points = decodePolyline(data.routes[0].overview_polyline.points);
+      if (data.status === "OK") {
+        points = decodePolyline(data.routes[0].overview_polyline.points);
         setRouteCoordinates(points);
+        setParkingMarkers([]);
         setTravelTimes([data.routes[0].legs[0].duration.text]);
         mapRef.current?.fitToCoordinates(points, {
           edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
         });
-        setTravelTimesByMode({ driving: data.routes[0].legs[0].duration.text });
+        timesByMode["driving"] = data.routes[0].legs[0].duration.text;
       } else {
-        Alert.alert('Error', `Could not find a driving route: ${data.status}`);
+        Alert.alert("Error", `Could not find a driving route: ${data.status}`);
         return;
       }
-
-      // Fetch smart model route from backend
-      console.log('Fetching smart route from backend...');
-      try {
-        const backendResponse = await fetch(backendUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ start, end }),
-        });
-        console.log('Backend response status:', backendResponse.status);
-        if (!backendResponse.ok) {
-          const errorText = await backendResponse.text();
-          console.error('Backend error response:', errorText);
-          Alert.alert('Backend Error', `Failed to fetch smart route: ${errorText}`);
-          return;
-        }
-
-        const backendData = await backendResponse.json();
-        console.log('Backend data:', JSON.stringify(backendData, null, 2));
-
-        if (backendData.error) {
-          console.error('Backend returned an error:', backendData.error);
-          Alert.alert('Backend Error', `Backend error: ${backendData.error}`);
-          return;
-        }
-
-        const bestRoute = backendData.best_route;
-        if (!bestRoute || !bestRoute.points) {
-          console.error('Invalid backend response: best_route or points missing');
-          Alert.alert('Backend Error', 'Invalid response from backend: missing best route or points');
-          return;
-        }
-
-        setSmartRouteCoordinates(bestRoute.points);
-        setSmartTravelTimes([bestRoute.duration_in_traffic]);
-        setRouteDetails({
-          ...bestRoute.details,
-          total_score: bestRoute.total_score,
-          normalized_score: bestRoute.normalized_score,
-        });
-        mapRef.current?.fitToCoordinates([...points, ...bestRoute.points], {
-          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        });
-      } catch (backendError) {
-        console.error('Error fetching smart route:', backendError);
-        Alert.alert('Backend Error', `Failed to fetch smart route: ${backendError.message}`);
-        return;
-      }
-
     } catch (error) {
-      console.error('General error in calculateRoute:', error);
-      Alert.alert('Error', 'Failed to fetch routes: ' + error.message);
+      Alert.alert("Error", "Failed to fetch driving route: " + error.message);
+      return;s
+    }
+
+    setTravelTimesByMode(timesByMode);
+  };
+
+  const decodePolyline = (encoded: string) => {
+    let points = [];
+    let index = 0,
+      len = encoded.length;
+    let lat = 0,
+      lng = 0;
+
+    while (index < len) {
+      let b,
+        shift = 0,
+        result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlat = (result & 1) != 0 ? ~(result >> 1) : result >> 1;
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlng = (result & 1) != 0 ? ~(result >> 1) : result >> 1;
+      lng += dlng;
+
+      points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+    }
+    return points;
+  };
+
+  const useCurrentLocation = () => {
+    if (!permissionGranted) {
+      Alert.alert(
+        "Permission Required",
+        "Please enable location permissions in settings.",
+        [
+          { text: "Cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ]
+      );
       return;
     }
+
+    Alert.alert("Getting Location", "Please wait while we fetch your location...");
+
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setStartMarker({
+          latitude,
+          longitude,
+        });
+
+        fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "OK") {
+              setStart(data.results[0].formatted_address);
+              mapRef.current?.animateToRegion({
+                latitude,
+                longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              });
+            } else {
+              Alert.alert("Error", "Geocoding failed: " + data.status);
+            }
+          })
+          .catch((error) => {
+            console.error("Geocoding error:", error);
+            Alert.alert("Error", "Could not geocode location.");
+          });
+      },
+      (error) => {
+        let errorMessage = "Could not get current location";
+        if (error.code === error.TIMEOUT) {
+          errorMessage = "Location request timed out. Please check your GPS/Wi-Fi and try again.";
+        } else if (error.code === error.PERMISSION_DENIED) {
+          errorMessage = "Location permission denied. Please enable in settings.";
+        }
+        Alert.alert("Error", errorMessage);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   };
 
   const resetMap = () => {
-    setStart('');
-    setEnd('');
+    setStart("");
+    setEnd("");
+    setSearchQuery("");
     setRouteCoordinates([]);
-    setSmartRouteCoordinates([]);
+    setParkingMarkers([]);
+    setSearchMarkers([]);
     setTravelTimes([]);
-    setSmartTravelTimes([]);
     setTravelTimesByMode(null);
-    setStartMarker(null);
+    setShowRouteInput(false);
     setDestinationMarker(null);
-    setRouteDetails(null);
-    mapRef.current?.animateToRegion({
-      latitude: 0.3476, // Default to Kampala, Uganda
-      longitude: 32.5825,
-      latitudeDelta: 0.5,
-      longitudeDelta: 0.5,
-    });
+    setStartMarker(null);
+    mapRef.current?.animateToRegion(defaultLocation);
+  };
+
+  const searchPlaces = async () => {
+    if (!searchQuery) {
+      Alert.alert("Error", "Please enter a search query.");
+      return;
+    }
+
+    const result = await getPlaceCoordinates(searchQuery);
+    if (result) {
+      const newMarker = {
+        name: result.name,
+        latitude: result.latitude,
+        longitude: result.longitude,
+      };
+      setSearchMarkers([newMarker]);
+      setSearchQuery("");
+      mapRef.current?.animateToRegion({
+        latitude: result.latitude,
+        longitude: result.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
+    } else {
+      Alert.alert("Error", `No results found for "${searchQuery}". Try a different query or check your spelling.`);
+    }
+  };
+
+  const goToTraffic = () => {
+    navigation.navigate("TrafficScreen");
+  };
+
+  const goToWeather = () => {
+    navigation.navigate("WeatherScreen");
+  };
+
+  const goToCrash = () => {
+    navigation.navigate("CrashScreen");
   };
 
   return (
     <View style={styles.container}>
+      
+      <View style={styles.customHeaderOverlay}>
+        <Icon
+          name="family-restroom"  // Or "navigate" or "map"
+          size={24}
+          color="#2563EB"
+          style={styles.headerIcon}
+        />
+        <Text style={styles.customHeaderText}>RouteWise - Parent</Text>
+      </View>
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={{
-          latitude: 0.3476, // Kampala, Uganda
-          longitude: 32.5825,
-          latitudeDelta: 0.5,
-          longitudeDelta: 0.5,
-        }}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={defaultLocation}
       >
+        {routeCoordinates.length > 0 && (
+          <Polyline coordinates={routeCoordinates} strokeWidth={4} strokeColor="#007AFF" />
+        )}
+        {parkingMarkers.map((marker, index) => (
+          <Marker key={index} coordinate={{ latitude: marker.latitude, longitude: marker.longitude }} title={marker.name} />
+        ))}
+        {searchMarkers.map((marker, index) => (
+          <Marker key={index} coordinate={{ latitude: marker.latitude, longitude: marker.longitude }} title={marker.name} pinColor="green" />
+        ))}
         {startMarker && (
-          <Marker coordinate={startMarker} title="Start" pinColor="green" />
+          <Marker coordinate={startMarker} title="Start" pinColor="green">
+            <Callout>
+              <View style={styles.callout}>
+                <Text style={styles.calloutTitle}>Start Point</Text>
+                <Text style={styles.calloutDescription}>Location: {start}</Text>
+              </View>
+            </Callout>
+          </Marker>
         )}
         {destinationMarker && (
-          <Marker coordinate={destinationMarker} title="Destination" pinColor="red" />
-        )}
-        {routeCoordinates.length > 0 && (
-          <Polyline coordinates={routeCoordinates} strokeColor="blue" strokeWidth={4} />
-        )}
-        {smartRouteCoordinates.length > 0 && (
-          <Polyline coordinates={smartRouteCoordinates} strokeColor="green" strokeWidth={4} />
+          <Marker coordinate={destinationMarker} title="Destination" pinColor="red">
+            <Callout>
+              <View style={styles.callout}>
+                <Text style={styles.calloutTitle}>Destination</Text>
+                <Text style={styles.calloutDescription}>Location: {end}</Text>
+              </View>
+            </Callout>
+          </Marker>
         )}
       </MapView>
-      <View style={styles.inputContainer}>
+
+      <View style={styles.searchContainer}>
         <TextInput
-          style={styles.input}
-          placeholder="Start location (e.g., Kampala, Uganda)"
-          value={start}
-          onChangeText={setStart}
+          style={styles.searchInput}
+          placeholder="Search for a place..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={searchPlaces}
+          placeholderTextColor="#888"
+          returnKeyType="search"
         />
-        <TextInput
-          style={styles.input}
-          placeholder="End location (e.g., Jinja, Uganda)"
-          value={end}
-          onChangeText={setEnd}
-        />
-        <Button title="Calculate Route" onPress={calculateRoute} />
+        <TouchableOpacity style={styles.searchImageContainer} onPress={searchPlaces}>
+          <Icon name="search" size={30} color="#0000FF" />
+        </TouchableOpacity>
       </View>
+
+      <View style={styles.buttonContainer}>
+        {!showRouteInput && !travelTimesByMode && (
+          <TouchableOpacity 
+            style={styles.routeWiseButton} 
+            onPress={() => setShowRouteInput(true)}
+          >
+            <Icon name="map" size={24} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>RouteWise</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={styles.routeTrackerButton}
+          onPress={() => navigation.navigate("RouteTrackerScreen")}
+        >
+          <Icon name="assistant" size={24} color="#007AFF" style={styles.buttonIcon} />
+          <Text style={styles.routeTrackerButtonText}>Route Tracker</Text>
+        </TouchableOpacity>
+      </View>
+
+      {showRouteInput && !travelTimesByMode && (
+        <View style={styles.routeWiseOverlay}>
+          <TouchableOpacity
+            style={styles.cancelIcon}
+            onPress={() => setShowRouteInput(false)}
+          >
+            <Icon name="cancel" size={30} color="#0000FF" />
+          </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Current Location</Text>
+              <View style={styles.locationInputContainer}>
+                <TextInput
+                  style={styles.beautifiedInput}
+                  placeholder="Current Location"
+                  value={start}
+                  onChangeText={setStart}
+                  placeholderTextColor="#888"
+                  returnKeyType="next"
+                />
+                <TouchableOpacity 
+                  style={styles.myLocationButton} 
+                  onPress={useCurrentLocation}
+                >
+                  <Icon name="my-location" size={20} color="#007AFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.beautifiedInput}
+                placeholder="Enter destination..."
+                value={end}
+                onChangeText={setEnd}
+                placeholderTextColor="#888"
+                returnKeyType="go"
+                onSubmitEditing={calculateRoute}
+              />
+            </View>
+            
+            <View style={styles.modeButtonRow}>
+              <TouchableOpacity 
+                style={[styles.modeButton, styles.modeButtonActive]} 
+                onPress={calculateRoute}
+              >
+                <Icon name="directions-car" size={24} color="#fff" />
+                <Text style={styles.modeButtonTextActive}>Drive</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.navigateButton} 
+              onPress={calculateRoute}
+            >
+              <Icon name="route" size={20} color="#007AFF" style={styles.routeIcon} />
+              <Text style={styles.navigateButtonText}>Get Directions</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <View style={styles.bottomContainer}>
         {travelTimesByMode && (
           <View style={styles.travelTimesPanel}>
             <Text style={styles.timeTitle}>Estimated Travel Times</Text>
             <View style={styles.timeRow}>
-              <Text style={styles.timeText}>🚗 Google: {travelTimesByMode.driving}</Text>
-              {smartTravelTimes.length > 0 ? (
-                <Text style={styles.timeText}>🌟 Smart Route: {smartTravelTimes[0]}</Text>
-              ) : (
-                <Text style={styles.timeText}>🌟 Smart Route: Not available</Text>
-              )}
+              <Text style={styles.timeText}>🚗 {travelTimesByMode.driving}</Text>
             </View>
-            {routeDetails ? (
-              <View style={styles.routeDetails}>
-                <Text style={styles.timeText}>Total Score: {routeDetails.total_score?.toFixed(2) || 'N/A'}</Text>
-                <Text style={styles.timeText}>Normalized Score: {routeDetails.normalized_score?.toFixed(2) || 'N/A'}</Text>
-                <Text style={styles.timeText}>Traffic Risk: {routeDetails.avg_traffic_score?.toFixed(2) || 'N/A'}</Text>
-                <Text style={styles.timeText}>Crash Risk: {routeDetails.avg_crash_score?.toFixed(2) || 'N/A'}</Text>
-                <Text style={styles.timeText}>Weather Risk: {routeDetails.avg_weather_score?.toFixed(2) || 'N/A'}</Text>
-              </View>
-            ) : (
-              <View style={styles.routeDetails}>
-                <Text style={styles.timeText}>Smart Route Details: Not available</Text>
-              </View>
-            )}
+            <Button title="Cancel" onPress={resetMap} />
+          </View>
+        )}
+        {travelTimes.length > 0 && (
+          <View style={styles.travelTimesPanel}>
+            <Text style={styles.timeTitle}>Estimated Travel Time</Text>
+            <ScrollView style={styles.timeList}>
+              {travelTimes.map((time, index) => (
+                <Text key={index} style={styles.timeText}>{time}</Text>
+              ))}
+            </ScrollView>
             <Button title="Cancel" onPress={resetMap} />
           </View>
         )}
       </View>
+
+      <View style={{ width: "100%", position: "relative" }}>
+        <PullUpPanel
+          setShowRouteInput={setShowRouteInput}
+          useCurrentLocation={useCurrentLocation}
+          setSearchQuery={setSearchQuery}
+          searchPlaces={searchPlaces}
+          goToWeather={goToWeather}
+          goToTraffic={goToTraffic}
+        />
+      </View>
+
+      <View style={styles.floatingButtons}>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
+          <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Weather</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+          <Icon name="traffic" size={24} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Traffic</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
+          <Icon name="warning" size={24} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Crash</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
-  inputContainer: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 5,
-    elevation: 5,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 8,
-    marginBottom: 10,
-    borderRadius: 5,
-  },
-  bottomContainer: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    right: 10,
-  },
-  travelTimesPanel: {
-    backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 5,
-    elevation: 5,
-  },
-  timeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timeText: {
-    fontSize: 14,
-    marginBottom: 3,
-  },
-  routeDetails: {
-    marginTop: 10,
-  },
-});
 
 export default ParentScreen;

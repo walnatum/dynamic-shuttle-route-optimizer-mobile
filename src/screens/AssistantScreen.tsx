@@ -12,9 +12,11 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import Config from "react-native-config";
 import styles from "./styles/AssistantScreenStyles";
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import PullUpPanel from "./PullUpPanel";
+// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
+import PullUpPanel from "./PullUpPanel";
 
 
 
@@ -29,11 +31,12 @@ type AssistantScreenRouteProp = RouteProp<RootStackParamList, 'AssistantScreen'>
 const AssistantScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<AssistantScreenRouteProp>();
-  const { tempCode, driverCode } = route.params || { tempCode: "", driverCode: "" };
+  const { tempCode, driverCode: initialDriverCode } = route.params || { tempCode: "", driverCode: "" };
   const mapRef = useRef<MapView>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
   const [code, setCode] = useState<string>(tempCode);
+  const [driverCode, setDriverCode] = useState<string>(initialDriverCode);
 
   const defaultLocation = {
     latitude: 0.3476,
@@ -57,6 +60,18 @@ const AssistantScreen = () => {
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
+    const loadDriverCode = async () => {
+      try {
+        const storedDriverCode = await AsyncStorage.getItem("driver_code");
+        if (storedDriverCode) {
+          setDriverCode(storedDriverCode);
+        }
+      } catch (error) {
+        console.error("Error loading driver code:", error);
+      }
+    };
+    loadDriverCode();
+
     const requestLocationPermission = async () => {
       try {
         if (Platform.OS === "android") {
@@ -86,6 +101,13 @@ const AssistantScreen = () => {
       Alert.alert("Error", "Please enter a code.");
       return;
     }
+
+    if (!driverCode) {
+      Alert.alert("Error", "Driver code not found. Please log in first.");
+      navigation.navigate("LogScreen");
+      return;
+    }
+
 
     try {
       const response = await fetch(`${Config.API_BASE_URL}/api/verify-driver-code/`, {
@@ -152,35 +174,27 @@ const AssistantScreen = () => {
           <Text style={styles.enterButtonText}>Enter</Text>
         </TouchableOpacity>
       </View>
+            
             <View style={{ width: "100%", position: "relative" }}>
-              <PullUpPanel
-                // setShowRouteInput={setShowRouteInput}
-                // useCurrentLocation={useCurrentLocation}
-                // setSearchQuery={setSearchQuery}
-                // searchPlaces={searchPlaces}
-                // goToWeather={goToWeather}
-                // goToTraffic={goToTraffic}
-              />
-            </View>
-      <View style={styles.floatingButtons}>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
-          <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Weather</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
-          <Icon name="traffic" size={24} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Traffic</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
-          <Icon name="warning" size={24} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Crash</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+                    <PullUpPanel/>
+                  </View>
+            
+                  <View style={styles.floatingButtons}>
+                    <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
+                      <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Weather</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+                      <Icon name="traffic" size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Traffic</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
+                      <Icon name="warning" size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Crash</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
   );
 };
-
-
-
 
 export default AssistantScreen;

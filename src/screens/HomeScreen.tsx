@@ -72,22 +72,6 @@ const HomeScreen = () => {
   const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isLoadingPickupPoints, setIsLoadingPickupPoints] = useState<boolean>(false);
-  const [isSimulating, setIsSimulating] = useState<boolean>(false);
-  const [simulationRoutes, setSimulationRoutes] = useState<{latitude: number; longitude: number}[][]>([]);
-  const [currentSimulationIndex, setCurrentSimulationIndex] = useState<number>(0);
-  const [simulationMarker, setSimulationMarker] = useState<{latitude: number; longitude: number} | null>(null);
-  const [showSimulationControls, setShowSimulationControls] = useState<boolean>(false);
-  const [totalSimulationTime, setTotalSimulationTime] = useState<string>("");
-
-  // Add these new state variables at the top
-const [reachedPoints, setReachedPoints] = useState<number[]>([]);
-const [legDurations, setLegDurations] = useState<string[]>([]);
-const [isRerouting, setIsRerouting] = useState<boolean>(false);
-
-
-  
-  // Animation ref for simulation
-  const simulationAnim = useRef(new Animated.Value(0)).current;
 
   const openPhotoOverlay = () => {
     setShowPhotoOverlay(true);
@@ -379,74 +363,123 @@ const [isRerouting, setIsRerouting] = useState<boolean>(false);
   };
 
   const navigateToTimeLocations = async () => {
-    if (!selectedTime) {
-      Alert.alert("Error", "Please select a time (Morning, Afternoon, or Evening) first.");
-      return;
-    }
+  if (!selectedTime) {
+    Alert.alert("Error", "Please select a time (Morning, Afternoon, or Evening) first.");
+    return;
+  }
 
-    const locations = timeMarkers;
-    if (locations.length < 2) {
-      Alert.alert("Error", "Not enough pickup points to create a route.");
-      return;
-    }
+  if (!start && !startMarker) {
+    Alert.alert("Error", "Please enter or set your current location first.");
+    return;
+  }
 
-    setShowRouteInput(false);
+  let locations = timeMarkers;
+  if (locations.length < 1) {
+    Alert.alert("Error", "Not enough pickup points to create a route.");
+    return;
+  }
 
-    const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
-    let allTravelTimes: string[] = [];
+  const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+  let startLocation;
 
-    for (let i = 0; i < locations.length - 1; i++) {
-      const origin = `${locations[i].latitude},${locations[i].longitude}`;
-      const destination = `${locations[i + 1].latitude},${locations[i + 1].longitude}`;
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
-
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.status === "OK") {
-          const duration = data.routes[0].legs[0].duration.text;
-          allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     ${duration}`);
-        } else {
-          allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     N/A`);
-        }
-      } catch (error) {
-        console.error("Error fetching route for time-based locations:", error);
-        allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     Error`);
-      }
-    }
-
-    setTravelTimes(allTravelTimes);
-
-    const displayLeg = async (legIndex: number) => {
-      if (legIndex >= locations.length - 1) return;
-
-      const origin = `${locations[legIndex].latitude},${locations[legIndex].longitude}`;
-      const destination = `${locations[legIndex + 1].latitude},${locations[legIndex + 1].longitude}`;
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
-
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.status === "OK") {
-          const points = decodePolyline(data.routes[0].overview_polyline.points);
-          setRouteCoordinates(points);
-          mapRef.current?.fitToCoordinates(points, {
-            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-          });
-
-          setTimeout(() => {
-            setCurrentLegIndex(legIndex + 1);
-            displayLeg(legIndex + 1);
-          }, 3000);
-        }
-      } catch (error) {
-        console.error("Error fetching route for leg:", error);
-      }
+  // Use startMarker if available (from "My Location" button); otherwise, geocode the start input
+  if (startMarker) {
+    startLocation = {
+      name: "Current Location",
+      latitude: startMarker.latitude,
+      longitude: startMarker.longitude,
+      description: "Your current location",
     };
+  } else {
+    // Geocode the start input to get its coordinates
+    try {
+      const startPlacesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(start)}&key=${apiKey}&region=ug`;
+      const startResponse = await fetch(startPlacesUrl);
+      const startData = await startResponse.json();
+      if (startData.status !== "OK" || !startData.results[0]) {
+        Alert.alert("Error", "Invalid starting location. Try a more specific query like 'Acacia Mall, Kampala'");
+        return;
+      }
+      const startCoords = startData.results[0].geometry.location;
+      startLocation = {
+        name: start,
+        latitude: startCoords.lat,
+        longitude: startCoords.lng,
+        description: "Starting point",
+      };
+      // Update startMarker to display it on the map
+      setStartMarker({
+        latitude: startCoords.lat,
+        longitude: startCoords.lng,
+      });
+    } catch (error) {
+      Alert.alert("Error", "Failed to find starting location. Check your input or internet connection.");
+      console.error("Places API error:", error);
+      return;
+    }
+  }
 
-    setCurrentLegIndex(0);
-    displayLeg(0);
+  // Prepend the startLocation to the locations array
+  locations = [startLocation, ...timeMarkers];
+
+  setShowRouteInput(false);
+
+  let allTravelTimes: string[] = [];
+
+  for (let i = 0; i < locations.length - 1; i++) {
+    const origin = `${locations[i].latitude},${locations[i].longitude}`;
+    const destination = `${locations[i + 1].latitude},${locations[i + 1].longitude}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === "OK") {
+        const duration = data.routes[0].legs[0].duration.text;
+        allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     ${duration}`);
+      } else {
+        allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     N/A`);
+      }
+    } catch (error) {
+      console.error("Error fetching route for time-based locations:", error);
+      allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     Error`);
+    }
+  }
+
+  setTravelTimes(allTravelTimes);
+
+  const displayLeg = async (legIndex: number) => {
+    if (legIndex >= locations.length - 1) return;
+
+    const origin = `${locations[legIndex].latitude},${locations[legIndex].longitude}`;
+    const destination = `${locations[legIndex + 1].latitude},${locations[legIndex + 1].longitude}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === "OK") {
+        const points = decodePolyline(data.routes[0].overview_polyline.points);
+        setRouteCoordinates(points);
+        mapRef.current?.fitToCoordinates(points, {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        });
+
+        setTimeout(() => {
+          setCurrentLegIndex(legIndex + 1);
+          displayLeg(legIndex + 1);
+        }, 10000);
+      }
+    } catch (error) {
+      console.error("Error fetching route for leg:", error);
+    }
   };
+
+  setCurrentLegIndex(0);
+  displayLeg(0);
+};
+
+
 
   const searchPlaces = async () => {
     if (!searchQuery) {
@@ -484,6 +517,7 @@ const [isRerouting, setIsRerouting] = useState<boolean>(false);
     }
   };
 
+
   const openSearchOverlay = () => {
     setShowSearchOverlay(true);
   };
@@ -494,7 +528,7 @@ const [isRerouting, setIsRerouting] = useState<boolean>(false);
       navigation.navigate("LogScreen");
       return;
     }
-  
+
     setIsGenerating(true);
     setSyncStatus("In Sync");
     try {
@@ -506,22 +540,21 @@ const [isRerouting, setIsRerouting] = useState<boolean>(false);
         },
         body: JSON.stringify({ driver_code: driverCode }),
       });
-  
+
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
         console.error("Non-JSON response:", text);
         throw new Error("Server returned non-JSON response");
       }
-  
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate code");
       }
-  
+
       setGeneratedCode(data.code);
       setSyncStatus("Synced");
-      navigation.navigate("LogScreen", { tempCode: data.code, driverCode });
     } catch (error: any) {
       console.error("Error generating code:", error.message);
       setSyncStatus("Not in sync");
@@ -547,215 +580,6 @@ const [isRerouting, setIsRerouting] = useState<boolean>(false);
       },
     })
   ).current;
-
-
-  // ... (Keep all existing functions like calculateRoute, decodePolyline, etc.)
-
-  // const simulateRoute = async () => {
-  //   if (!startMarker || timeMarkers.length === 0) {
-  //     Alert.alert("Error", "Please set current location and select time-based points first.");
-  //     return;
-  //   }
-
-  //   setIsSimulating(true);
-  //   setShowSimulationControls(true);
-  //   const allPoints = [startMarker, ...timeMarkers.map(marker => ({
-  //     latitude: marker.latitude,
-  //     longitude: marker.longitude
-  //   }))];
-
-  //   let routes = [];
-  //   let totalSeconds = 0;
-
-  //   // Calculate routes between all points
-  //   for (let i = 0; i < allPoints.length - 1; i++) {
-  //     const origin = allPoints[i];
-  //     const destination = allPoints[i + 1];
-      
-  //     const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
-  //     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${apiKey}&mode=driving`;
-
-  //     try {
-  //       const response = await fetch(url);
-  //       const data = await response.json();
-  //       if (data.status === "OK") {
-  //         const points = decodePolyline(data.routes[0].overview_polyline.points);
-  //         routes.push(points);
-  //         totalSeconds += data.routes[0].legs[0].duration.value;
-  //       }
-  //     } catch (error) {
-  //       console.error("Error calculating route:", error);
-  //     }
-  //   }
-
-  //   setSimulationRoutes(routes);
-  //   setTotalSimulationTime(formatDuration(totalSeconds));
-  //   setCurrentSimulationIndex(0);
-  //   startSimulation(routes);
-  // };
-
-
-  const simulateRoute = async () => {
-  // Enhanced validation
-   // Check if we have either:
-  // 1. Physical coordinates (from GPS), OR
-  // 2. A valid address in the start input field
-  let currentLocation = startMarker;
-  
-  if (!currentLocation && start) {
-    try {
-      // Geocode the text input if no physical coordinates
-      const apiKey = Config.GOOGLE_MAPS_API_KEY;
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(start)}&key=${apiKey}`;
-      
-      const response = await fetch(geocodeUrl);
-      const data = await response.json();
-      
-      if (data.status === "OK" && data.results[0]) {
-        currentLocation = {
-          latitude: data.results[0].geometry.location.lat,
-          longitude: data.results[0].geometry.location.lng
-        };
-      }
-    } catch (error) {
-      console.error("Geocoding failed:", error);
-    }
-  }
-
-    // Validation
-  if (!currentLocation) {
-    Alert.alert("Location Required", 
-      "Please either:\n1. Use the 'My Location' button, OR\n2. Enter a valid starting address"
-    );
-    return;
-  }
-
-  if (timeMarkers.length === 0) {
-    Alert.alert("No Points", "Please select time-based points first");
-    return;
-  }
-
-
-
-  setIsSimulating(true);
-  setShowSimulationControls(true);
-  
-  try {
-  const allPoints = [
-    currentLocation,
-    ...timeMarkers.map(marker => ({
-      latitude: marker.latitude,
-      longitude: marker.longitude
-    }))
-  ];
-    let routes = [];
-    let totalSeconds = 0;
-
-    // Calculate routes between all points
-    for (let i = 0; i < allPoints.length - 1; i++) {
-      const origin = allPoints[i];
-      const destination = allPoints[i + 1];
-      
-      const apiKey = Config.GOOGLE_MAPS_API_KEY;
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${apiKey}&mode=driving`;
-
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.status !== "OK") {
-        throw new Error(`Route ${i} failed: ${data.status}`);
-      }
-
-      const points = decodePolyline(data.routes[0].overview_polyline.points);
-      routes.push(points);
-      totalSeconds += data.routes[0].legs[0].duration.value;
-    }
-
-    if (routes.length === 0) {
-      throw new Error("No valid routes calculated");
-    }
-
-    setSimulationRoutes(routes);
-    setTotalSimulationTime(formatDuration(totalSeconds));
-    setCurrentSimulationIndex(0);
-    startSimulation(routes);
-    
-  } catch (error) {
-    console.error("Simulation failed:", error);
-    Alert.alert("Simulation Error", error.message || "Failed to calculate routes");
-    cancelSimulation();
-  }
-};
-
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours > 0 ? `${hours} h ` : ""}${minutes} min`;
-  };
-
-  const startSimulation = (routes: any[]) => {
-    if (currentSimulationIndex >= routes.length) {
-      setIsSimulating(false);
-      return;
-    }
-
-    const currentRoute = routes[currentSimulationIndex];
-    setRouteCoordinates(currentRoute);
-
-    // Animate marker along the route
-    simulationAnim.setValue(0);
-    Animated.timing(simulationAnim, {
-      toValue: 1,
-      duration: 5000, // 5 seconds per segment
-      useNativeDriver: false,
-    }).start(() => {
-      setCurrentSimulationIndex(currentSimulationIndex + 1);
-      startSimulation(routes);
-    });
-
-    // Update marker position during animation
-    simulationAnim.addListener(({ value }) => {
-      const index = Math.floor(value * (currentRoute.length - 1));
-      setSimulationMarker(currentRoute[index]);
-    });
-  };
-
-  const rerouteSimulation = async () => {
-    if (currentSimulationIndex >= simulationRoutes.length) return;
-
-    const currentPoint = simulationRoutes[currentSimulationIndex][0];
-    const nextPoint = simulationRoutes[currentSimulationIndex][simulationRoutes[currentSimulationIndex].length - 1];
-
-    const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${currentPoint.latitude},${currentPoint.longitude}&destination=${nextPoint.latitude},${nextPoint.longitude}&key=${apiKey}&mode=driving&alternatives=true`;
-
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.status === "OK" && data.routes.length > 1) {
-        // Use the first alternative route
-        const newRoute = decodePolyline(data.routes[1].overview_polyline.points);
-        const updatedRoutes = [...simulationRoutes];
-        updatedRoutes[currentSimulationIndex] = newRoute;
-        setSimulationRoutes(updatedRoutes);
-        startSimulation(updatedRoutes);
-      } else {
-        Alert.alert("Info", "No alternative route found. Using original route.");
-      }
-    } catch (error) {
-      console.error("Error fetching alternative route:", error);
-    }
-  };
-
-  const cancelSimulation = () => {
-    simulationAnim.stopAnimation();
-    setIsSimulating(false);
-    setShowSimulationControls(false);
-    setSimulationMarker(null);
-    setSimulationRoutes([]);
-    setCurrentSimulationIndex(0);
-    simulationAnim.removeAllListeners();
-  };
 
   return (
           <View style={styles.container}>
@@ -808,49 +632,7 @@ const [isRerouting, setIsRerouting] = useState<boolean>(false);
             pinColor="red"
           />
         )}
-
-        {/* Simulation marker */}
-        {simulationMarker && (
-          <Marker coordinate={simulationMarker}>
-            <View style={styles.movingMarker}>
-              <Icon name="directions-car" size={24} color="#007AFF" />
-            </View>
-          </Marker>
-        )}
       </MapView>
-
-
-      {/* Simulation controls */}
-      {showSimulationControls && (
-        <>
-          <View style={styles.simulationTimeContainer}>
-            <Text style={styles.simulationTimeText}>
-              Total Time: {totalSimulationTime}
-            </Text>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.rerouteButton}
-            onPress={rerouteSimulation}
-          >
-            <Text style={styles.simulationButtonText}>Reroute</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.startButton}
-            onPress={() => startSimulation(simulationRoutes)}
-          >
-            <Text style={styles.simulationButtonText}>Start</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.cancelSimulationButton}
-            onPress={cancelSimulation}
-          >
-            <Icon name="cancel" size={24} color="#FF3B30" />
-          </TouchableOpacity>
-        </>
-      )}
 
       {isLoadingPickupPoints && (
         <View style={styles.loadingOverlay}>
@@ -902,7 +684,6 @@ const [isRerouting, setIsRerouting] = useState<boolean>(false);
           <Text style={styles.assistantButtonText}>Assistant</Text>
         </TouchableOpacity>
       </View>
-z
 
       {showRouteInput && !travelTimesByMode && !hideInputs && (
         <View style={styles.routeWiseOverlay}>
@@ -994,15 +775,6 @@ z
               <Icon name="route" size={20} color="#007AFF" style={styles.routeIcon} />
               <Text style={styles.navigateButtonText}>RouteWise</Text>
             </TouchableOpacity>
-
-                      {/* Add Simulate button */}
-          <TouchableOpacity 
-            style={styles.simulateButton}
-            onPress={simulateRoute}
-          >
-            <Icon name="play-circle-outline" size={24} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>Simulate</Text>
-          </TouchableOpacity>
           </View>
         </View>
       )}
@@ -1020,7 +792,7 @@ z
             <Button title="Cancel" onPress={resetMap} />
           </View>
         )}
-        {travelTimes.length > 0 && (
+        {/* {travelTimes.length > 0 && (
           <View style={styles.travelTimesPanel}>
             <Text style={styles.timeTitle}>Estimated Travel Time</Text>
             <ScrollView style={styles.timeList}>
@@ -1030,7 +802,23 @@ z
             </ScrollView>
             <Button title="Cancel" onPress={resetMap} />
           </View>
-        )}
+        )} */}
+       {travelTimes.length > 0 && (
+  <View style={styles.travelTimesPanel}>
+    <View style={styles.headerContainer}>
+      <Text style={styles.timeTitle}>Estimated Travel Time</Text>
+      <TouchableOpacity style={styles.cancelIconT} onPress={resetMap}>
+        <Icon name="cancel" size={24} color="#1E90FF" />
+      </TouchableOpacity>
+    </View>
+    <ScrollView style={styles.timeList}>
+      {travelTimes.map((time, index) => (
+        <Text key={index} style={styles.timeText}>{time}</Text>
+      ))}
+    </ScrollView>
+  </View>
+)}
+
       </View>
 
       <View style={{ width: "100%", position: "relative" }}>
@@ -1091,7 +879,7 @@ z
           <View style={styles.overlayContent}>
             <View style={styles.header}>
               <Icon name="verified-user" size={28} color="#007AFF" />
-              <Text style={styles.overlayTitle}>Assistant Code </Text>
+              <Text style={styles.overlayTitle}>Assistant Code</Text>
             </View>
 
             <Text style={styles.overlayText}>
@@ -1150,6 +938,7 @@ z
         </View>
       )}
 
+      
       {showSearchOverlay && (
         <View style={styles.searchOverlay}>
           <LinearGradient colors={["#4facfe", "#00f2fe"]} style={styles.searchOverlayContent}>
