@@ -741,6 +741,23 @@ legDurationText: {
 simulationButtonDisabled: {
   opacity: 0.6,
 },
+
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between', // Pushes items to opposite ends
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+
+    cancelIconT: {
+    paddingLeft:100,
+    // position: 'absolute',
+    // right: 50, // Positioning the icon at the right edge
+    // top: 5, // Adjust the vertical alignment
+  },
+
+
 });
 
 export default styles;

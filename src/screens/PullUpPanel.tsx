@@ -328,7 +328,7 @@ const panResponder = useRef(
         </View>
       )}
       
-      <View style={styles.floatingButtons}>
+      {/* <View style={styles.floatingButtons}>
         <TouchableOpacity 
           style={styles.floatingButton} 
           onPress={() => {
@@ -356,7 +356,7 @@ const panResponder = useRef(
           <Icon name={activeTab === "routes" ? "chat" : "directions-bus"} size={20} color="#fff" />
           <Text style={styles.buttonText}>{activeTab === "routes" ? "Updates" : "Routes"}</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
     </Animated.View>
   );
 };

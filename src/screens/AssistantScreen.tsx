@@ -12,7 +12,9 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import Config from "react-native-config";
 import styles from "./styles/AssistantScreenStyles";
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Icon from "react-native-vector-icons/MaterialIcons";
+
 import PullUpPanel from "./PullUpPanel";
 
 
@@ -152,35 +154,27 @@ const AssistantScreen = () => {
           <Text style={styles.enterButtonText}>Enter</Text>
         </TouchableOpacity>
       </View>
+            
             <View style={{ width: "100%", position: "relative" }}>
-              <PullUpPanel
-                // setShowRouteInput={setShowRouteInput}
-                // useCurrentLocation={useCurrentLocation}
-                // setSearchQuery={setSearchQuery}
-                // searchPlaces={searchPlaces}
-                // goToWeather={goToWeather}
-                // goToTraffic={goToTraffic}
-              />
-            </View>
-      <View style={styles.floatingButtons}>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
-          <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Weather</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
-          <Icon name="traffic" size={24} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Traffic</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
-          <Icon name="warning" size={24} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.buttonText}>Crash</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+                    <PullUpPanel/>
+                  </View>
+            
+                  <View style={styles.floatingButtons}>
+                    <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
+                      <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Weather</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+                      <Icon name="traffic" size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Traffic</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
+                      <Icon name="warning" size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Crash</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
   );
 };
-
-
-
 
 export default AssistantScreen;
