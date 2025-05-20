@@ -66,8 +66,7 @@ const LogScreen = () => {
           "Accept": "application/json",
           "Content-Type": "application/json",
         },
-        // body: JSON.stringify({ email, password }),
-        body: JSON.stringify({ email: "tumuhaise@gmail.com", password: "nangosha" }), // TODO; remove this
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();

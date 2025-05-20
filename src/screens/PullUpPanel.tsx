@@ -3,8 +3,6 @@ import { View, Text, TouchableOpacity, ScrollView, Animated, PanResponder, Dimen
 import Config from "react-native-config";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
-// TODO; add support for voting and downvoting, notifications to other drivers
-
 interface Reporter {
   id: string;
   first_name: string;
@@ -103,30 +101,38 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
   const reportEvent =  async () => {
     if (!roadEvent.trim()) return;
     
-    const newRoadEvent: RoadEvent = {
+    const newRoadEvent = {
       description: roadEvent,
       reported_at: new Date(),
     };
-    
-    // setRoadEvents([newRoadEvent, ...roadEvents]); # TODO; change this
+
     setRoadEvent("");
 
     try {
-        await fetch(`${Config.API_BASE_URL}/api/road-events/`, {
+        const res = await fetch(`${Config.API_BASE_URL}/api/road-events/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(newRoadEvent),
         });
+        
+        const created = await res.json()
+
+        setRoadEvents([{...created}, ...roadEvents])
       } catch (error) {
         console.error("Error fetching road events:", error);
       }
   };
 
-  const handleVote = (id: string, voteType: 'up' | 'down') => {
+  const handleVote = async (id: string, voteType: 'up' | 'down') => {
     setRoadEvents(roadEvents.map(rdEvent => {
       if (rdEvent.id === id) {
+        // user should only vote once, maybe remove this??
+        if (rdEvent.userVote) {
+          return rdEvent;
+        }
+
         // If user is changing their vote
         if (rdEvent.userVote === voteType) {
           return rdEvent; // No change if clicking same vote again
@@ -148,6 +154,20 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
       }
       return rdEvent;
     }));
+
+    try {
+        await fetch(`${Config.API_BASE_URL}/api/road-events/${id}/vote/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            "vote_type": voteType,
+          }),
+        });
+      } catch (error) {
+        console.error("Error fetching road events:", error);
+      }
   };
 
   const formatTime = (date: string) => {
@@ -215,7 +235,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
           </View>
 
           {/* North Campus Express */}
-          <View style={styles.routeCard}>
+          {/* <View style={styles.routeCard}>
             <Image 
               source={{ uri: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60' }}
               style={styles.routeImage}
@@ -231,10 +251,10 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
                 <Text style={styles.routeText}>Peak Hours: 9:00 AM - 10:00 AM</Text>
               </View>
             </View>
-          </View>
+          </View> */}
           
           {/* South Campus Loop */}
-          <View style={styles.routeCard}>
+          {/* <View style={styles.routeCard}>
             <Image 
               source={{ uri: 'https://images.unsplash.com/photo-1509822929063-6b6cfc9b42f2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60' }}
               style={styles.routeImage}
@@ -250,10 +270,10 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
                 <Text style={styles.routeText}>Frequency: Every 15 minutes</Text>
               </View>
             </View>
-          </View>
+          </View> */}
           
           {/* East-West Connector */}
-          <View style={styles.routeCard}>
+          {/* <View style={styles.routeCard}>
             <Image 
               source={{ uri: 'https://images.unsplash.com/photo-1509822929063-6b6cfc9b42f2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60' }}
               style={styles.routeImage}
@@ -269,7 +289,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
                 <Text style={styles.routeText}>Service Hours: 7:00 AM - 9:00 PM</Text>
               </View>
             </View>
-          </View>
+          </View> */}
         </ScrollView>
       ) : (
         <View style={styles.crowdsourceContainer}>
@@ -284,8 +304,9 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
                 <Text style={styles.roadEventText}>{roadEvent.description}</Text>
                 <View style={styles.voteContainer}>
                   <TouchableOpacity 
-       crowd             style={[styles.voteButton, roadEvent.userVote === 'up' && styles.votedUp]}
+                    style={[styles.voteButton, roadEvent.userVote === 'up' && styles.votedUp]}
                     onPress={() => handleVote(roadEvent.id, 'up')}
+                    // disabled={!!roadEvent.userVote}
                   >
                     <Icon name="thumb-up" size={16} color={roadEvent.userVote === 'up' ? "#fff" : "#4CAF50"} />
                   </TouchableOpacity>
