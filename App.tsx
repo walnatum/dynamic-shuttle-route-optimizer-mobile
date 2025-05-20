@@ -14,10 +14,12 @@ import ListScreen from "./src/screens/ListScreen";
 import LogScreen from "./src/screens/LogScreen";
 import ParentLogScreen from "./src/screens/ParentLogScreen";
 import AdminLoginScreen from "./src/screens/AdminLoginScreen";
-import TrafficScreen from "./src/screens/Trafficscreen";
+import TrafficScreen from "./src/screens/TrafficScreen";
 import AdminScreen from "./src/screens/AdminScreen";
 import WeatherScreen from "./src/screens/WeatherScreen";
 import CrashScreen from "./src/screens/CrashScreen";
+import ModelDemoScreen from "./src/screens/ModelDemoScreen";
+
 
 export type RootStackParamList = {
   Login: undefined;
@@ -34,6 +36,7 @@ export type RootStackParamList = {
   RouteScreen: undefined;
   WeatherScreen: undefined;
   CrashScreen: undefined;
+  ModelDemoScreen: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -56,6 +59,8 @@ function App() {
           <Stack.Screen name="AdminScreen" component={AdminScreen} />
           <Stack.Screen name="WeatherScreen" component={WeatherScreen} />
           <Stack.Screen name="CrashScreen" component={CrashScreen} />
+          <Stack.Screen name="ModelDemoScreen" component={ModelDemoScreen} />
+
 
 
         </Stack.Navigator>

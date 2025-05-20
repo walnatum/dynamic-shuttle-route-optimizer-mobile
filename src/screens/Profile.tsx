@@ -705,12 +705,15 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import { useNavigation } from '@react-navigation/native';
 
 interface ProfileProps {
   onClose: () => void;
 }
 
 const Profile: React.FC<ProfileProps> = ({ onClose }) => {
+  const navigation = useNavigation();
+
   // Placeholder user data
   const [user, setUser] = useState({
     fullName: "John Doe",
@@ -723,6 +726,10 @@ const Profile: React.FC<ProfileProps> = ({ onClose }) => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState({ ...user });
+
+  const goToDemo = () => {
+    navigation.navigate("ModelDemoScreen");
+  };
 
   const toggleEdit = () => {
     if (isEditing) {
@@ -859,6 +866,10 @@ const Profile: React.FC<ProfileProps> = ({ onClose }) => {
               <Text style={styles.buttonText}>Edit Profile</Text>
             </TouchableOpacity>
           )}
+
+              <TouchableOpacity onPress={goToDemo}>
+              <Text style={styles.buttonText}>Model Demo</Text>
+            </TouchableOpacity>
         </View>
 
         <TouchableOpacity
