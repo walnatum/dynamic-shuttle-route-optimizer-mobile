@@ -22,7 +22,11 @@ const ModelDemoScreen = ({ navigation }) => {
   const mapRef = useRef(null);
 
   const apiKey = 'AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU'; // Your Google Maps API key
-  const backendUrl = 'http://10.0.2.2:5000/get_route'; // Update if hosted on Render
+  // const backendUrl = 'http://10.0.2.2:5000/get_route'; // Update if hosted on Render
+  const backendUrl = 'https://routewise-ml.onrender.com/get_route'; // Update if hosted on Render
+
+
+  
 
   // Hide the default navigation header
   useEffect(() => {

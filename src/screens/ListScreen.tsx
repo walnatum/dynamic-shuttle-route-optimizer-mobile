@@ -266,7 +266,7 @@ const ListScreen = () => {
     <View style={styles.container}>
             <View style={styles.customHeaderOverlay}>
               <Icon
-                name="family-restroom"  // Or "navigate" or "map"
+                name="list"  // Or "navigate" or "map"
                 size={24}
                 color="#2563EB"
                 style={styles.headerIcon}
