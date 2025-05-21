@@ -1,11 +1,8 @@
-
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Button, Alert, StyleSheet, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-import { decode } from '@mapbox/polyline'; // For decoding Google Maps polyline
+import { decode } from '@mapbox/polyline';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const ModelDemoScreen = ({ navigation }) => {
   const [start, setStart] = useState('');
@@ -18,26 +15,39 @@ const ModelDemoScreen = ({ navigation }) => {
   const [startMarker, setStartMarker] = useState(null);
   const [destinationMarker, setDestinationMarker] = useState(null);
   const [routeDetails, setRouteDetails] = useState(null);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDetails, setShowDetails] = useState(true);
+  const [selectedMode, setSelectedMode] = useState('driving');
   const mapRef = useRef(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const apiKey = 'AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU'; // Your Google Maps API key
-  // const backendUrl = 'http://10.0.2.2:5000/get_route'; // Update if hosted on Render
-  const backendUrl = 'https://routewise-ml.onrender.com/get_route'; // Update if hosted on Render
+  const apiKey = 'AIzaSyBIq7bzSYsYJ65cLhtYsQTx_q0bBzRreWU';
+  const backendUrl = 'https://routewise-ml.onrender.com/get_route';
 
-
-  
-
-  // Hide the default navigation header
+  // Fade-in animation for route details panel
   useEffect(() => {
-    navigation.setOptions({
-      headerShown: false, // This removes the "ModelDemoScreen" navigation bar
-    });
+    if (travelTimesByMode && showDetails) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [travelTimesByMode, showDetails]);
+
+  // Hide navigation header
+  useEffect(() => {
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
   const getPlaceCoordinates = async (place) => {
     if (!place) return null;
-
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(place)}&key=${apiKey}`;
     try {
       const response = await fetch(url);
@@ -74,11 +84,13 @@ const ModelDemoScreen = ({ navigation }) => {
       return;
     }
 
+    setIsLoading(true);
     let startCoords, endCoords;
     try {
       const startResult = await getPlaceCoordinates(start);
       if (!startResult) {
         Alert.alert('Error', `Could not find the starting location: ${start}`);
+        setIsLoading(false);
         return;
       }
       startCoords = { lat: startResult.latitude, lng: startResult.longitude };
@@ -90,6 +102,7 @@ const ModelDemoScreen = ({ navigation }) => {
       const endResult = await getPlaceCoordinates(end);
       if (!endResult) {
         Alert.alert('Error', `Could not find the destination: ${end}`);
+        setIsLoading(false);
         return;
       }
       endCoords = { lat: endResult.latitude, lng: endResult.longitude };
@@ -99,7 +112,7 @@ const ModelDemoScreen = ({ navigation }) => {
       });
 
       // Fetch Google Maps route
-      const drivingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoords.lat},${startCoords.lng}&destination=${endCoords.lat},${endCoords.lng}&key=${apiKey}&mode=driving`;
+      const drivingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoords.lat},${startCoords.lng}&destination=${endCoords.lat},${endCoords.lng}&key=${apiKey}&mode=${selectedMode}`;
       const response = await fetch(drivingUrl);
       const data = await response.json();
       if (data.status === 'OK') {
@@ -109,9 +122,10 @@ const ModelDemoScreen = ({ navigation }) => {
         mapRef.current?.fitToCoordinates(points, {
           edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
         });
-        setTravelTimesByMode({ driving: data.routes[0].legs[0].duration.text });
+        setTravelTimesByMode({ [selectedMode]: data.routes[0].legs[0].duration.text });
       } else {
-        Alert.alert('Error', `Could not find a driving route: ${data.status}`);
+        Alert.alert('Error', `Could not find a ${selectedMode} route: ${data.status}`);
+        setIsLoading(false);
         return;
       }
 
@@ -121,13 +135,13 @@ const ModelDemoScreen = ({ navigation }) => {
         const backendResponse = await fetch(backendUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ start, end }),
+          body: JSON.stringify({ start, end, mode: selectedMode }),
         });
-        console.log('Backend response status:', backendResponse.status);
         if (!backendResponse.ok) {
           const errorText = await backendResponse.text();
           console.error('Backend error response:', errorText);
           Alert.alert('Backend Error', `Failed to fetch smart route: ${errorText}`);
+          setIsLoading(false);
           return;
         }
 
@@ -137,36 +151,40 @@ const ModelDemoScreen = ({ navigation }) => {
         if (backendData.error) {
           console.error('Backend returned an error:', backendData.error);
           Alert.alert('Backend Error', `Backend error: ${backendData.error}`);
+          setIsLoading(false);
           return;
         }
 
-        const bestRoute = backendData.best_route;
-        if (!bestRoute || !bestRoute.points) {
-          console.error('Invalid backend response: best_route or points missing');
-          Alert.alert('Backend Error', 'Invalid response from backend: missing best route or points');
+        const bestRoute = backendData.best_route || {};
+        if (!bestRoute.points || !Array.isArray(bestRoute.points)) {
+          console.error('Invalid backend response: best_route.points is missing or not an array', backendData);
+          Alert.alert('Backend Error', 'Invalid response from backend: missing or invalid best_route.points');
+          setIsLoading(false);
           return;
         }
 
         setSmartRouteCoordinates(bestRoute.points);
-        setSmartTravelTimes([bestRoute.duration_in_traffic]);
+        setSmartTravelTimes([bestRoute.duration_in_traffic || 'N/A']);
         setRouteDetails({
           ...bestRoute.details,
-          total_score: bestRoute.total_score,
-          normalized_score: bestRoute.normalized_score,
+          total_score: bestRoute.total_score || 'N/A',
+          normalized_score: bestRoute.normalized_score || 'N/A',
+          avg_traffic_score: bestRoute.details?.avg_traffic_score || 0,
+          avg_crash_score: bestRoute.details?.avg_crash_score || 0,
+          avg_weather_score: bestRoute.details?.avg_weather_score || 0,
         });
         mapRef.current?.fitToCoordinates([...points, ...bestRoute.points], {
           edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
         });
       } catch (backendError) {
-        console.error('Error fetching smart route:', backendError);
-        Alert.alert('Backend Error', `Failed to fetch smart route: ${backendError.message}`);
-        return;
+        // console.error('Error fetching smart route:', backendError);
+        // Alert.alert('Backend Error', `Failed to fetch smart route: ${backendError.message}`);
       }
-
     } catch (error) {
       console.error('General error in calculateRoute:', error);
       Alert.alert('Error', 'Failed to fetch routes: ' + error.message);
-      return;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -181,24 +199,47 @@ const ModelDemoScreen = ({ navigation }) => {
     setStartMarker(null);
     setDestinationMarker(null);
     setRouteDetails(null);
+    setShowDetails(true);
     mapRef.current?.animateToRegion({
-      latitude: 0.3476, // Default to Kampala, Uganda
+      latitude: 0.3476,
       longitude: 32.5825,
       latitudeDelta: 0.5,
       longitudeDelta: 0.5,
     });
   };
 
+  const toggleDetails = () => {
+    setShowDetails(!showDetails);
+  };
+
+  const clearStartInput = () => {
+    setStart('');
+    if (!end && !routeCoordinates.length) resetMap();
+  };
+
+  const clearEndInput = () => {
+    setEnd('');
+    if (!start && !routeCoordinates.length) resetMap();
+  };
+
+  // Ensure scores are numbers and handle toFixed safely
+  const formatScore = (value) => {
+    return typeof value === 'number' && !isNaN(value) ? value.toFixed(2) : 'N/A';
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color="#1E90FF" />
+        </TouchableOpacity>
         <Text style={styles.headerText}>RouteWise - ML Model</Text>
       </View>
       <MapView
         ref={mapRef}
         style={styles.map}
         initialRegion={{
-          latitude: 0.3476, // Kampala, Uganda
+          latitude: 0.3476,
           longitude: 32.5825,
           latitudeDelta: 0.5,
           longitudeDelta: 0.5,
@@ -211,78 +252,133 @@ const ModelDemoScreen = ({ navigation }) => {
           <Marker coordinate={destinationMarker} title="Destination" pinColor="red" />
         )}
         {routeCoordinates.length > 0 && (
-          <Polyline coordinates={routeCoordinates} strokeColor="blue" strokeWidth= {4} />
+          <Polyline coordinates={routeCoordinates} strokeColor="blue" strokeWidth={4} />
         )}
         {smartRouteCoordinates.length > 0 && (
           <Polyline coordinates={smartRouteCoordinates} strokeColor="green" strokeWidth={4} />
         )}
       </MapView>
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Start location (e.g., Kampala, Uganda)"
-          value={start}
-          onChangeText={setStart}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="End location (e.g., Jinja, Uganda)"
-          value={end}
-          onChangeText={setEnd}
-        />
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Kampala Serena Hotel, Uganda"
+            placeholderTextColor="#888"
+            value={start}
+            onChangeText={setStart}
+            returnKeyType="next"
+          />
+          {start && (
+            <TouchableOpacity style={styles.clearButton} onPress={clearStartInput}>
+              <Icon name="cancel" size={20} color="#888" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Jinja Nile Resort, Uganda"
+            placeholderTextColor="#888"
+            value={end}
+            onChangeText={setEnd}
+            returnKeyType="go"
+            onSubmitEditing={calculateRoute}
+          />
+          {end && (
+            <TouchableOpacity style={styles.clearButton} onPress={clearEndInput}>
+              <Icon name="cancel" size={20} color="#888" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.modeButtonRow}>
+          {['drive', 'walk', 'cycle', 'transit'].map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[styles.modeButton, selectedMode === mode && styles.modeButtonActive]}
+              onPress={() => setSelectedMode(mode)}
+            >
+              <Icon
+                name={
+                  mode === 'drive' ? 'directions-car' :
+                  mode === 'walk' ? 'directions-walk' :
+                  mode === 'cycle' ? 'directions-bike' :
+                  'directions-transit'
+                }
+                size={24}
+                color={selectedMode === mode ? '#fff' : '#666'}
+              />
+              <Text style={[styles.modeButtonText, selectedMode === mode && styles.modeButtonTextActive]}>
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <View style={styles.buttonContainer}>
           <Button
-            title="Calculate Route"
+            title={isLoading ? 'Calculating...' : 'Calculate Route'}
             onPress={calculateRoute}
             color="#1E90FF"
+            disabled={isLoading}
           />
           <View style={styles.buttonSpacer} />
           <Button
             title="Cancel"
             onPress={resetMap}
             color="#FF4444"
+            disabled={isLoading}
           />
         </View>
       </View>
-      <View style={styles.bottomContainer}>
-        {travelTimesByMode && (
-          <View style={styles.travelTimesPanel}>
-            <Text style={styles.timeTitle}>Route Details</Text>
-            <View style={styles.listContainer}>
-              <View style={styles.listItem}>
-                <Text style={styles.icon}>🚗</Text>
-                <Text style={styles.listText}>
-                  Google: {travelTimesByMode.driving || 'Not available'}
-                </Text>
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#1E90FF" />
+          <Text style={styles.loadingText}>Calculating routes...</Text>
+        </View>
+      )}
+      {travelTimesByMode && (
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity style={styles.toggleButton} onPress={toggleDetails}>
+            <Text style={styles.toggleButtonText}>{showDetails ? 'Hide Details' : 'Show Details'}</Text>
+          </TouchableOpacity>
+          {showDetails && (
+            <Animated.View style={[styles.travelTimesPanel, { opacity: fadeAnim }]}>
+              <Text style={styles.timeTitle}>Route Details</Text>
+              <View style={styles.listContainer}>
+                <View style={styles.listItem}>
+                  <Text style={styles.icon}>🚗</Text>
+                  <Text style={styles.listText}>
+                    Google: {travelTimesByMode[selectedMode] || 'Not available'}
+                  </Text>
+                </View>
+                <View style={styles.listItem}>
+                  <Text style={styles.icon}>🌟</Text>
+                  <Text style={styles.listText}>
+                    Smart Route: {smartTravelTimes.length > 0 ? smartTravelTimes[0] : 'Not available'}
+                  </Text>
+                </View>
+                <View style={styles.listItem}>
+                  <Text style={styles.icon}>🚦</Text>
+                  <Text style={styles.listText}>
+                    Traffic Risk: {formatScore(routeDetails?.avg_traffic_score)}
+                  </Text>
+                </View>
+                <View style={styles.listItem}>
+                  <Text style={styles.icon}>⚠️</Text>
+                  <Text style={styles.listText}>
+                    Crash Risk: {formatScore(routeDetails?.avg_crash_score)}
+                  </Text>
+                </View>
+                <View style={styles.listItem}>
+                  <Text style={styles.icon}>⛅</Text>
+                  <Text style={styles.listText}>
+                    Weather Risk: {formatScore(routeDetails?.avg_weather_score)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.listItem}>
-                <Text style={styles.icon}>🌟</Text>
-                <Text style={styles.listText}>
-                  Smart Route: {smartTravelTimes.length > 0 ? smartTravelTimes[0] : 'Not available'}
-                </Text>
-              </View>
-              <View style={styles.listItem}>
-                <Text style={styles.icon}>🚦</Text>
-                <Text style={styles.listText}>
-                  Traffic Risk: {routeDetails?.avg_traffic_score?.toFixed(2) || 'N/A'}
-                </Text>
-              </View>
-              <View style={styles.listItem}>
-                <Text style={styles.icon}>⚠️</Text>
-                <Text style={styles.listText}>
-                  Crash Risk: {routeDetails?.avg_crash_score?.toFixed(2) || 'N/A'}
-                </Text>
-              </View>
-              <View style={styles.listItem}>
-                <Text style={styles.icon}>⛅</Text>
-                <Text style={styles.listText}>
-                  Weather Risk: {routeDetails?.avg_weather_score?.toFixed(2) || 'N/A'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
+            </Animated.View>
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -290,7 +386,7 @@ const ModelDemoScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F6F5', // Light gray background for subtle contrast
+    backgroundColor: '#F5F6F5',
   },
   header: {
     position: 'absolute',
@@ -308,11 +404,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
   },
   headerText: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1E90FF', // Blue color for the title
+    color: '#1E90FF',
     textAlign: 'center',
   },
   map: {
@@ -320,7 +423,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'absolute',
-    top: 60, // Adjusted to sit below the header
+    top: 60,
     left: 15,
     right: 15,
     backgroundColor: '#FFFFFF',
@@ -333,15 +436,51 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     zIndex: 999,
   },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   input: {
+    flex: 1,
     backgroundColor: '#F8F9FA',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 10,
     fontSize: 16,
     color: '#333',
     borderWidth: 1,
     borderColor: '#E0E0E0',
+  },
+  clearButton: {
+    padding: 10,
+  },
+  modeButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F9FA',
+    paddingVertical: 14, // Increased further for better coverage
+    paddingHorizontal: 13, // Increased to ensure text fits
+    borderRadius: 8,
+    marginHorizontal: 5,
+  },
+  modeButtonActive: {
+    backgroundColor: '#1E90FF',
+  },
+  modeButtonText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 5,
+  },
+  modeButtonTextActive: {
+    color: '#fff',
+    fontWeight: '600',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -351,11 +490,40 @@ const styles = StyleSheet.create({
   buttonSpacer: {
     width: 10,
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -50 }, { translateY: -50 }],
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#1E90FF',
+  },
   bottomContainer: {
     position: 'absolute',
     bottom: 20,
     left: 15,
     right: 15,
+  },
+  toggleButton: {
+    backgroundColor: '#1E90FF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  toggleButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   travelTimesPanel: {
     backgroundColor: '#FFFFFF',
@@ -370,7 +538,7 @@ const styles = StyleSheet.create({
   timeTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1E90FF', // Blue for title
+    color: '#1E90FF',
     marginBottom: 10,
   },
   listContainer: {
@@ -397,6 +565,3 @@ const styles = StyleSheet.create({
 });
 
 export default ModelDemoScreen;
-
-
-
