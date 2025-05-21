@@ -9,7 +9,7 @@ interface Message {
   timestamp: Date;
   route?: string;
   votes: number;
-  userVote?: 'up' | 'down'; // Track user's vote
+  userVote?: 'up' | 'down'; 
 }
 
 interface PullUpPanelProps {
@@ -41,80 +41,65 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
   const maxPanelHeight = screenHeight * 0.85;
   const [activeTab, setActiveTab] = useState<"routes" | "crowdsource">("routes");
   const [message, setMessage] = useState("");
-  const [scrollEnabled, setScrollEnabled] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      user: "Traveler123",
-      text: "North Campus Express is running 10 mins late due to traffic near the Student Center.",
+      user: "Traveller",
+      text: "Sir Apollo Road is running 10 mins late due to traffic near Victoria Mall.",
       timestamp: new Date(Date.now() - 3600000),
-      route: "North Campus Express",
+      route: "Sir Apollo Road",
       votes: 8
     },
     {
       id: "2",
-      user: "CommuterPro",
-      text: "South Campus Loop is unusually crowded right now. Next shuttle in 5 mins.",
+      user: "Commuter",
+      text: "Ntinda Road is unusually crowded right now. Next shuttle in 5 mins.",
       timestamp: new Date(Date.now() - 1800000),
-      route: "South Campus Loop",
+      route: "Ntinda Road",
       votes: 5
     },
     {
       id: "3",
       user: "DailyRider",
-      text: "East-West Connector has AC issues today. Bring water!",
+      text: "Jinja Road has traffic issues today.",
       timestamp: new Date(Date.now() - 900000),
-      route: "East-West Connector",
+      route: "Jinja Road",
       votes: 12
     },
     {
       id: "4",
       user: "ShuttleWatcher",
-      text: "Maintenance work on North route tomorrow from 10AM-2PM. Expect delays.",
+      text: "Maintenance work on Highway tomorrow from 10AM-2PM. Expect delays.",
       timestamp: new Date(Date.now() - 7200000),
-      route: "North Campus Express",
+      route: "Entebbe Express Highway",
       votes: 15
     },
     {
       id: "5",
       user: "RouteHelper",
-      text: "New shuttle driver on South route today - please be patient as they learn the route.",
+      text: "New shuttle driver on Kyanja Road today - please be patient as they learn the route.",
       timestamp: new Date(Date.now() - 5400000),
-      route: "South Campus Loop",
+      route: "Kyanja Road",
       votes: 7
     },
   ]);
 
-const panResponder = useRef(
-  PanResponder.create({
-    onStartShouldSetPanResponder: (evt, gestureState) => {
-      // Only activate if touch is near the top of the panel (where the handle is)
-      return gestureState.y0 < 50;
-    },
-    onMoveShouldSetPanResponder: (evt, gestureState) => {
-      // Only activate if touch is near the top or if we're moving vertically
-      return gestureState.y0 < 50 || Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-    },
-    onPanResponderGrant: () => {
-      setScrollEnabled(false); // Disable scrolling when dragging starts
-    },
-    onPanResponderMove: (evt, gestureState) => {
-      const newHeight = Math.max(150, Math.min(maxPanelHeight, 150 - gestureState.dy));
-      panelHeight.setValue(newHeight);
-    },
-    onPanResponderRelease: (evt, gestureState) => {
-      const newHeight = gestureState.dy < -50 ? maxPanelHeight : 150;
-      Animated.spring(panelHeight, {
-        toValue: newHeight,
-        useNativeDriver: false,
-      }).start();
-      setScrollEnabled(true); // Re-enable scrolling when dragging ends
-    },
-    onPanResponderTerminate: () => {
-      setScrollEnabled(true); // Re-enable scrolling if gesture is terminated
-    },
-  })
-).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (evt, gestureState) => {
+        const newHeight = Math.max(150, Math.min(maxPanelHeight, 150 - gestureState.dy));
+        panelHeight.setValue(newHeight);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const newHeight = gestureState.dy < -50 ? maxPanelHeight : 150;
+        Animated.spring(panelHeight, {
+          toValue: newHeight,
+          useNativeDriver: false,
+        }).start();
+      },
+    })
+  ).current;
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
@@ -167,8 +152,10 @@ const panResponder = useRef(
     .slice(0, 3);
 
   return (
-    <Animated.View style={[styles.panel, { height: panelHeight }]} {...panResponder.panHandlers}>
-      <View style={styles.panelHandle} />
+    <Animated.View style={[styles.panel, { height: panelHeight }]}>
+      <View style={styles.panelHandleContainer} {...panResponder.panHandlers}>
+        <View style={styles.panelHandle} />
+      </View>
       
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
@@ -187,13 +174,16 @@ const panResponder = useRef(
       </View>
 
       {activeTab === "routes" ? (
-        <ScrollView style={styles.panelContent}>
-          scrollEnabled={scrollEnabled}
+        <ScrollView 
+          style={styles.panelContent}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          scrollEnabled={true}
+        >
           <Text style={styles.panelTitle}>RouteWise</Text>
           
-          {/* Top Community Alerts */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Community Alerts</Text>
+            <Text style={styles.sectionTitle}>Driver Alerts</Text>
             {topMessages.map((msg, index) => (
               <View key={msg.id} style={[styles.alertCard, index === 0 && styles.topAlert]}>
                 <View style={styles.alertHeader}>
@@ -220,17 +210,17 @@ const panResponder = useRef(
             ))}
           </View>
 
-          {/* North Campus Express */}
+          {/* Entebbe Express Highway */}
           <View style={styles.routeCard}>
             <Image 
               source={{ uri: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60' }}
               style={styles.routeImage}
             />
             <View style={styles.routeDetails}>
-              <Text style={styles.routeTitle}>North Campus Express</Text>
+              <Text style={styles.routeTitle}>Entebbe Express Highway</Text>
               <View style={styles.routeInfo}>
                 <Icon name="location-on" size={16} color="#666" />
-                <Text style={styles.routeText}>Next Stop: Student Center</Text>
+                <Text style={styles.routeText}>Next Stop: Victoria Mall</Text>
               </View>
               <View style={styles.routeInfo}>
                 <Icon name="access-time" size={16} color="#666" />
@@ -246,10 +236,10 @@ const panResponder = useRef(
               style={styles.routeImage}
             />
             <View style={styles.routeDetails}>
-              <Text style={styles.routeTitle}>South Campus Loop</Text>
+              <Text style={styles.routeTitle}>Sir Apollo Road</Text>
               <View style={styles.routeInfo}>
                 <Icon name="location-on" size={16} color="#666" />
-                <Text style={styles.routeText}>Next Stop: Library</Text>
+                <Text style={styles.routeText}>Next Stop: Makerere</Text>
               </View>
               <View style={styles.routeInfo}>
                 <Icon name="update" size={16} color="#666" />
@@ -258,17 +248,17 @@ const panResponder = useRef(
             </View>
           </View>
           
-          {/* East-West Connector */}
+          {/* Jinja Road */}
           <View style={styles.routeCard}>
             <Image 
               source={{ uri: 'https://images.unsplash.com/photo-1509822929063-6b6cfc9b42f2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60' }}
               style={styles.routeImage}
             />
             <View style={styles.routeDetails}>
-              <Text style={styles.routeTitle}>East-West Connector</Text>
+              <Text style={styles.routeTitle}>Jinja Road</Text>
               <View style={styles.routeInfo}>
                 <Icon name="location-on" size={16} color="#666" />
-                <Text style={styles.routeText}>Next Stop: Sports Complex</Text>
+                <Text style={styles.routeText}>Next Stop: Oasis Mall</Text>
               </View>
               <View style={styles.routeInfo}>
                 <Icon name="schedule" size={16} color="#666" />
@@ -279,8 +269,12 @@ const panResponder = useRef(
         </ScrollView>
       ) : (
         <View style={styles.crowdsourceContainer}>
-          <ScrollView style={styles.messagesContainer}>
-            scrollEnabled={scrollEnabled}
+          <ScrollView 
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={true}
+          >
             {messages.map((msg) => (
               <View key={msg.id} style={styles.messageCard}>
                 <View style={styles.messageHeader}>
@@ -317,7 +311,7 @@ const panResponder = useRef(
                 multiline
               />
               <TouchableOpacity 
-                style={styles.sendButton} 
+                style={[styles.sendButton, !message.trim() && styles.disabledSendButton]}
                 onPress={handleSendMessage}
                 disabled={!message.trim()}
               >
@@ -376,25 +370,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     overflow: "hidden",
   },
-panelHandle: {
-  width: 40,
-  height: 20, // Increased height for better touch area
-  backgroundColor: "transparent",
-  borderRadius: 2.5,
-  alignSelf: "center",
-  marginTop: 5,
-  marginBottom: 5,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-panelHandleBar: {
-  width: 40,
-  height: 5,
-  backgroundColor: "#ccc",
-  borderRadius: 2.5,
-},
+  panelHandleContainer: {
+    width: "100%",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  panelHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: "#ccc",
+    borderRadius: 2.5,
+    alignSelf: "center",
+  },
   panelContent: {
     padding: 15,
+  },
+  scrollContent: {
     paddingBottom: 100,
   },
   panelTitle: {
@@ -516,7 +507,9 @@ panelHandleBar: {
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    opacity: 1,
+  },
+  disabledSendButton: {
+    backgroundColor: '#cccccc',
   },
   routeCard: {
     flexDirection: 'row',

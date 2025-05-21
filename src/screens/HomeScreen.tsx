@@ -363,74 +363,123 @@ const HomeScreen = () => {
   };
 
   const navigateToTimeLocations = async () => {
-    if (!selectedTime) {
-      Alert.alert("Error", "Please select a time (Morning, Afternoon, or Evening) first.");
-      return;
-    }
+  if (!selectedTime) {
+    Alert.alert("Error", "Please select a time (Morning, Afternoon, or Evening) first.");
+    return;
+  }
 
-    const locations = timeMarkers;
-    if (locations.length < 2) {
-      Alert.alert("Error", "Not enough pickup points to create a route.");
-      return;
-    }
+  if (!start && !startMarker) {
+    Alert.alert("Error", "Please enter or set your current location first.");
+    return;
+  }
 
-    setShowRouteInput(false);
+  let locations = timeMarkers;
+  if (locations.length < 1) {
+    Alert.alert("Error", "Not enough pickup points to create a route.");
+    return;
+  }
 
-    const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
-    let allTravelTimes: string[] = [];
+  const apiKey = Config.GOOGLE_MAPS_API_KEY || "AIzaSyDmSlFirzRkhgtbOaMhh1SzlbygYTEKkzg";
+  let startLocation;
 
-    for (let i = 0; i < locations.length - 1; i++) {
-      const origin = `${locations[i].latitude},${locations[i].longitude}`;
-      const destination = `${locations[i + 1].latitude},${locations[i + 1].longitude}`;
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
-
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.status === "OK") {
-          const duration = data.routes[0].legs[0].duration.text;
-          allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     ${duration}`);
-        } else {
-          allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     N/A`);
-        }
-      } catch (error) {
-        console.error("Error fetching route for time-based locations:", error);
-        allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     Error`);
-      }
-    }
-
-    setTravelTimes(allTravelTimes);
-
-    const displayLeg = async (legIndex: number) => {
-      if (legIndex >= locations.length - 1) return;
-
-      const origin = `${locations[legIndex].latitude},${locations[legIndex].longitude}`;
-      const destination = `${locations[legIndex + 1].latitude},${locations[legIndex + 1].longitude}`;
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
-
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.status === "OK") {
-          const points = decodePolyline(data.routes[0].overview_polyline.points);
-          setRouteCoordinates(points);
-          mapRef.current?.fitToCoordinates(points, {
-            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-          });
-
-          setTimeout(() => {
-            setCurrentLegIndex(legIndex + 1);
-            displayLeg(legIndex + 1);
-          }, 3000);
-        }
-      } catch (error) {
-        console.error("Error fetching route for leg:", error);
-      }
+  // Use startMarker if available (from "My Location" button); otherwise, geocode the start input
+  if (startMarker) {
+    startLocation = {
+      name: "Current Location",
+      latitude: startMarker.latitude,
+      longitude: startMarker.longitude,
+      description: "Your current location",
     };
+  } else {
+    // Geocode the start input to get its coordinates
+    try {
+      const startPlacesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(start)}&key=${apiKey}&region=ug`;
+      const startResponse = await fetch(startPlacesUrl);
+      const startData = await startResponse.json();
+      if (startData.status !== "OK" || !startData.results[0]) {
+        Alert.alert("Error", "Invalid starting location. Try a more specific query like 'Acacia Mall, Kampala'");
+        return;
+      }
+      const startCoords = startData.results[0].geometry.location;
+      startLocation = {
+        name: start,
+        latitude: startCoords.lat,
+        longitude: startCoords.lng,
+        description: "Starting point",
+      };
+      // Update startMarker to display it on the map
+      setStartMarker({
+        latitude: startCoords.lat,
+        longitude: startCoords.lng,
+      });
+    } catch (error) {
+      Alert.alert("Error", "Failed to find starting location. Check your input or internet connection.");
+      console.error("Places API error:", error);
+      return;
+    }
+  }
 
-    setCurrentLegIndex(0);
-    displayLeg(0);
+  // Prepend the startLocation to the locations array
+  locations = [startLocation, ...timeMarkers];
+
+  setShowRouteInput(false);
+
+  let allTravelTimes: string[] = [];
+
+  for (let i = 0; i < locations.length - 1; i++) {
+    const origin = `${locations[i].latitude},${locations[i].longitude}`;
+    const destination = `${locations[i + 1].latitude},${locations[i + 1].longitude}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === "OK") {
+        const duration = data.routes[0].legs[0].duration.text;
+        allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     ${duration}`);
+      } else {
+        allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     N/A`);
+      }
+    } catch (error) {
+      console.error("Error fetching route for time-based locations:", error);
+      allTravelTimes.push(`${locations[i].name} to ${locations[i + 1].name}     Error`);
+    }
+  }
+
+  setTravelTimes(allTravelTimes);
+
+  const displayLeg = async (legIndex: number) => {
+    if (legIndex >= locations.length - 1) return;
+
+    const origin = `${locations[legIndex].latitude},${locations[legIndex].longitude}`;
+    const destination = `${locations[legIndex + 1].latitude},${locations[legIndex + 1].longitude}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}&mode=driving`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === "OK") {
+        const points = decodePolyline(data.routes[0].overview_polyline.points);
+        setRouteCoordinates(points);
+        mapRef.current?.fitToCoordinates(points, {
+          edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        });
+
+        setTimeout(() => {
+          setCurrentLegIndex(legIndex + 1);
+          displayLeg(legIndex + 1);
+        }, 10000);
+      }
+    } catch (error) {
+      console.error("Error fetching route for leg:", error);
+    }
   };
+
+  setCurrentLegIndex(0);
+  displayLeg(0);
+};
+
+
 
   const searchPlaces = async () => {
     if (!searchQuery) {
@@ -467,6 +516,7 @@ const HomeScreen = () => {
       console.error("Search error:", error);
     }
   };
+
 
   const openSearchOverlay = () => {
     setShowSearchOverlay(true);
@@ -742,7 +792,7 @@ const HomeScreen = () => {
             <Button title="Cancel" onPress={resetMap} />
           </View>
         )}
-        {travelTimes.length > 0 && (
+        {/* {travelTimes.length > 0 && (
           <View style={styles.travelTimesPanel}>
             <Text style={styles.timeTitle}>Estimated Travel Time</Text>
             <ScrollView style={styles.timeList}>
@@ -752,7 +802,23 @@ const HomeScreen = () => {
             </ScrollView>
             <Button title="Cancel" onPress={resetMap} />
           </View>
-        )}
+        )} */}
+       {travelTimes.length > 0 && (
+  <View style={styles.travelTimesPanel}>
+    <View style={styles.headerContainer}>
+      <Text style={styles.timeTitle}>Estimated Travel Time</Text>
+      <TouchableOpacity style={styles.cancelIconT} onPress={resetMap}>
+        <Icon name="cancel" size={24} color="#1E90FF" />
+      </TouchableOpacity>
+    </View>
+    <ScrollView style={styles.timeList}>
+      {travelTimes.map((time, index) => (
+        <Text key={index} style={styles.timeText}>{time}</Text>
+      ))}
+    </ScrollView>
+  </View>
+)}
+
       </View>
 
       <View style={{ width: "100%", position: "relative" }}>

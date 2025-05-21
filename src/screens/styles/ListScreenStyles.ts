@@ -22,12 +22,14 @@ const styles = StyleSheet.create({
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.2,
       shadowRadius: 4,
+      marginTop:60,
     },
     info: { 
       fontSize: 16, 
       color: "#333", 
       marginBottom: 5, 
       fontWeight: "600" // Bolder text
+
     },
     inputContainer: {
       position: "absolute",
@@ -35,6 +37,8 @@ const styles = StyleSheet.create({
       left: 10,
       right: 10,
       padding: 15,
+      marginTop:60,
+
     },
     inputWrapper: {
       flexDirection: "row",
@@ -132,30 +136,66 @@ const styles = StyleSheet.create({
       marginLeft: 10,
       fontWeight: "500"
     },
-    floatingButtons: {
-      position: "absolute",
-      bottom: 20,
-      left: 20,
-      right: 20,
-      flexDirection: "row",
-      justifyContent: "space-around",
-    },
-    floatingButton: {
-      backgroundColor: "#007bff", // Slightly brighter blue
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 25,
-      elevation: 5,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.3,
-      shadowRadius: 5,
-    },
+floatingButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+  },
+  floatingButton: {
+    flex: 1,
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    elevation: 5,
+  },
     buttonText: { 
       color: "white", 
       fontWeight: "bold",
       fontSize: 14 
     },
+
+
+    customHeaderOverlay: {
+    height: 70,  // Slightly taller for better proportions
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,  // For Android shadow
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  customHeaderText: {
+    color: '#2563EB',  // More vibrant blue
+    fontSize: 22,
+    fontWeight: '700',  // Semi-bold
+    fontStyle: 'italic',
+    letterSpacing: 0.5,
+    marginLeft: 10,  // Space after icon
+    includeFontPadding: false,  // Better text alignment
+  },
+  headerIcon: {
+    marginRight: 8,  // Space between icon and text
+  },
   });
 
   export default styles; // Use default export

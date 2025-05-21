@@ -11,6 +11,9 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import Config from "react-native-config";
 import styles from "./styles/ListScreenStyles";
+import Icon from "react-native-vector-icons/MaterialIcons";
+
+
 
 type RootStackParamList = {
   ListScreen: { driverCode: string; shuttle: { reg_number: string } | null };
@@ -28,6 +31,7 @@ interface Student {
 }
 
 const ListScreen = () => {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<ListScreenRouteProp>();
   const { driverCode, shuttle } = route.params || { driverCode: "", shuttle: null };
   const [students, setStudents] = useState<Student[]>([]);
@@ -44,6 +48,8 @@ const ListScreen = () => {
 
   // Log students state on change
   useEffect(() => {
+    navigation.setOptions({ headerShown: false });
+
     console.log("Current students state:", students);
   }, [students]);
 
@@ -92,12 +98,9 @@ const ListScreen = () => {
         throw new Error(`Failed to update student. Status: ${updateResponse.status}`);
       }
 
-      const updatedStudentData = await updateResponse.json();
-      console.log("Updated student:", updatedStudentData);
-
       // Create a ShuttleAssignment
       const assignmentData = {
-        student: updatedStudentData.id,
+        student: studentData.id,
         shuttle: shuttle.reg_number,
       };
       console.log("Creating shuttle assignment:", assignmentData);
@@ -119,7 +122,10 @@ const ListScreen = () => {
       const assignmentResult = await assignmentResponse.json();
       console.log("Created shuttle assignment:", assignmentResult);
 
-      const newStudent: Student = {
+      // Use the student data from the assignment response
+      const updatedStudentData = assignmentResult.student;
+
+      const newStudent = {
         id: updatedStudentData.id,
         name: updatedStudentData.student_name,
         school: updatedStudentData.school_name,
@@ -137,7 +143,7 @@ const ListScreen = () => {
       setStudents((prevStudents) => [...prevStudents, newStudent]);
       setNewStudentCode("");
       Alert.alert("Success", `Student ${newStudent.name} onboarded successfully.`);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error onboarding student:", error.message);
       Alert.alert("Error", error.message || "Failed to onboard student. Check the code or network.");
     }
@@ -243,8 +249,30 @@ const ListScreen = () => {
     }
   };
 
+
+    const goToTraffic = () => {
+    navigation.navigate("TrafficScreen");
+  };
+
+  const goToWeather = () => {
+    navigation.navigate("WeatherScreen");
+  };
+
+  const goToCrash = () => {
+    navigation.navigate("CrashScreen");
+  };
+
   return (
     <View style={styles.container}>
+            <View style={styles.customHeaderOverlay}>
+              <Icon
+                name="list"  // Or "navigate" or "map"
+                size={24}
+                color="#2563EB"
+                style={styles.headerIcon}
+              />
+              <Text style={styles.customHeaderText}>RouteWise - List</Text>
+            </View>
       <MapView
         style={styles.map}
         provider={PROVIDER_GOOGLE}
@@ -308,13 +336,16 @@ const ListScreen = () => {
         )}
       </View>
       <View style={styles.floatingButtons}>
-        <TouchableOpacity style={styles.floatingButton}>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToWeather}>
+          <Icon name="cloud" size={24} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Weather</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton}>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToTraffic}>
+          <Icon name="traffic" size={24} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Traffic</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton}>
+        <TouchableOpacity style={styles.floatingButton} onPress={goToCrash}>
+          <Icon name="warning" size={24} color="#fff" style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Crash</Text>
         </TouchableOpacity>
       </View>
