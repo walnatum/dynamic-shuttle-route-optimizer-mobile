@@ -45,23 +45,23 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
     {
       id: "1",
       user: "Traveller",
-      text: "Sir Apollo Road is running 10 mins late due to traffic near the Student Center.",
+      text: "Sir Apollo Road is running 10 mins late due to traffic near Victoria Mall.",
       timestamp: new Date(Date.now() - 3600000),
       route: "Sir Apollo Road",
       votes: 8
     },
     {
       id: "2",
-      user: "CommuterPro",
-      text: "South Campus Loop is unusually crowded right now. Next shuttle in 5 mins.",
+      user: "Commuter",
+      text: "Ntinda Road is unusually crowded right now. Next shuttle in 5 mins.",
       timestamp: new Date(Date.now() - 1800000),
-      route: "South Campus Loop",
+      route: "Ntinda Road",
       votes: 5
     },
     {
       id: "3",
       user: "DailyRider",
-      text: "Jinja Road has AC issues today. Bring water!",
+      text: "Jinja Road has traffic issues today.",
       timestamp: new Date(Date.now() - 900000),
       route: "Jinja Road",
       votes: 12
@@ -77,9 +77,9 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
     {
       id: "5",
       user: "RouteHelper",
-      text: "New shuttle driver on South route today - please be patient as they learn the route.",
+      text: "New shuttle driver on Kyanja Road today - please be patient as they learn the route.",
       timestamp: new Date(Date.now() - 5400000),
-      route: "South Campus Loop",
+      route: "Kyanja Road",
       votes: 7
     },
   ]);
@@ -152,8 +152,10 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
     .slice(0, 3);
 
   return (
-    <Animated.View style={[styles.panel, { height: panelHeight }]} {...panResponder.panHandlers}>
-      <View style={styles.panelHandle} />
+    <Animated.View style={[styles.panel, { height: panelHeight }]}>
+      <View style={styles.panelHandleContainer} {...panResponder.panHandlers}>
+        <View style={styles.panelHandle} />
+      </View>
       
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
@@ -172,7 +174,12 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
       </View>
 
       {activeTab === "routes" ? (
-        <ScrollView style={styles.panelContent}>
+        <ScrollView 
+          style={styles.panelContent}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          scrollEnabled={true}
+        >
           <Text style={styles.panelTitle}>RouteWise</Text>
           
           <View style={styles.section}>
@@ -213,7 +220,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
               <Text style={styles.routeTitle}>Entebbe Express Highway</Text>
               <View style={styles.routeInfo}>
                 <Icon name="location-on" size={16} color="#666" />
-                <Text style={styles.routeText}>Next Stop: Student Center</Text>
+                <Text style={styles.routeText}>Next Stop: Victoria Mall</Text>
               </View>
               <View style={styles.routeInfo}>
                 <Icon name="access-time" size={16} color="#666" />
@@ -232,7 +239,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
               <Text style={styles.routeTitle}>Sir Apollo Road</Text>
               <View style={styles.routeInfo}>
                 <Icon name="location-on" size={16} color="#666" />
-                <Text style={styles.routeText}>Next Stop: Library</Text>
+                <Text style={styles.routeText}>Next Stop: Makerere</Text>
               </View>
               <View style={styles.routeInfo}>
                 <Icon name="update" size={16} color="#666" />
@@ -251,7 +258,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
               <Text style={styles.routeTitle}>Jinja Road</Text>
               <View style={styles.routeInfo}>
                 <Icon name="location-on" size={16} color="#666" />
-                <Text style={styles.routeText}>Next Stop: Sports Complex</Text>
+                <Text style={styles.routeText}>Next Stop: Oasis Mall</Text>
               </View>
               <View style={styles.routeInfo}>
                 <Icon name="schedule" size={16} color="#666" />
@@ -262,7 +269,12 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
         </ScrollView>
       ) : (
         <View style={styles.crowdsourceContainer}>
-          <ScrollView style={styles.messagesContainer}>
+          <ScrollView 
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={true}
+          >
             {messages.map((msg) => (
               <View key={msg.id} style={styles.messageCard}>
                 <View style={styles.messageHeader}>
@@ -299,7 +311,7 @@ const PullUpPanel: React.FC<PullUpPanelProps> = ({
                 multiline
               />
               <TouchableOpacity 
-                style={styles.sendButton} 
+                style={[styles.sendButton, !message.trim() && styles.disabledSendButton]}
                 onPress={handleSendMessage}
                 disabled={!message.trim()}
               >
@@ -358,16 +370,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     overflow: "hidden",
   },
+  panelHandleContainer: {
+    width: "100%",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
   panelHandle: {
     width: 40,
     height: 5,
     backgroundColor: "#ccc",
     borderRadius: 2.5,
     alignSelf: "center",
-    marginTop: 10,
   },
   panelContent: {
     padding: 15,
+  },
+  scrollContent: {
     paddingBottom: 100,
   },
   panelTitle: {
@@ -489,7 +507,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    opacity: 1,
+  },
+  disabledSendButton: {
+    backgroundColor: '#cccccc',
   },
   routeCard: {
     flexDirection: 'row',

@@ -17,7 +17,7 @@ interface ProfileProps {
 }
 
 const Profile: React.FC<ProfileProps> = ({ onClose }) => {
-const navigation = useNavigation();
+  const navigation = useNavigation();
 
   // Placeholder user data
   const [user, setUser] = useState({
@@ -34,7 +34,6 @@ const navigation = useNavigation();
   const goToDemo = () => {
     navigation.navigate("ModelDemoScreen");
   };
-
 
   const toggleEdit = () => {
     if (isEditing) {
@@ -83,13 +82,6 @@ const navigation = useNavigation();
         </TouchableOpacity>
 
         <Text style={styles.overlayTitle}>User Profile</Text>
-
-        {/* <View style={styles.profilePictureContainer}>
-          <Image
-            source={{ uri: user.profilePicture }}
-            style={styles.profilePicture}
-          />
-        </View> */}
 
         <View style={styles.profileInfo}>
           <View style={styles.infoRow}>
@@ -171,10 +163,9 @@ const navigation = useNavigation();
               <Text style={styles.buttonText}>Edit Profile</Text>
             </TouchableOpacity>
           )}
-
-            <TouchableOpacity onPress={goToDemo}>
-              <Text style={styles.buttonText}>Model Demo</Text>
-            </TouchableOpacity>
+          <TouchableOpacity style={styles.demoButton} onPress={goToDemo}>
+            <Text style={styles.buttonText}>Model Demo</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -274,6 +265,15 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   cancelButton: {
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    flex: 1,
+    alignItems: "center",
+    marginLeft: 5,
+  },
+  demoButton: {
     backgroundColor: "#fff",
     paddingVertical: 10,
     paddingHorizontal: 20,
