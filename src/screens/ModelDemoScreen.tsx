@@ -192,7 +192,7 @@ const ModelDemoScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>RouteWise - Model Demo</Text>
+        <Text style={styles.headerText}>RouteWise - ML Model</Text>
       </View>
       <MapView
         ref={mapRef}

@@ -21,12 +21,11 @@ const navigation = useNavigation();
 
   // Placeholder user data
   const [user, setUser] = useState({
-    fullName: "John Doe",
-    email: "johndoe@example.com",
+    fullName: "Bernard",
+    email: "bernard@routewise.com",
     phone: "+256-123-456-789",
-    address: "123 Acacia Avenue, Kampala, Uganda",
-    profilePicture: "https://via.placeholder.com/150",
-    lastLogin: "April 16, 2025, 10:30 AM",
+    address: "Acacia Mall, Kampala, Uganda",
+    lastLogin: "May 22, 2025, 10:30 AM",
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -85,12 +84,12 @@ const navigation = useNavigation();
 
         <Text style={styles.overlayTitle}>User Profile</Text>
 
-        <View style={styles.profilePictureContainer}>
+        {/* <View style={styles.profilePictureContainer}>
           <Image
             source={{ uri: user.profilePicture }}
             style={styles.profilePicture}
           />
-        </View>
+        </View> */}
 
         <View style={styles.profileInfo}>
           <View style={styles.infoRow}>
